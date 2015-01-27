@@ -113,6 +113,11 @@
             common['token'] = md5.hex_md5( common['report_ts'] + Options['Key']);
         },
         initUid:function(){
+            var self = this;
+
+            var uid = tools.getCookie("pinId");
+            self.options.uid = uid ? uid : "";
+
             MPing.tools.localShare(function(){
                 var timestamp=(new Date()).getTime(),
                     _localShare = this,
@@ -121,35 +126,18 @@
                 if(!_localShare.getItem("mba_muid")){
                     _localShare.setItem("mba_muid" ,tools.getUniq() ,1*365*24*60*60*1000 );//1年过期
                 }else{
-                    tools.setItem("mba_muid" ,tools.getItem("mba_muid") ,1*365*24*60*60*1000 );//1年过期
+                    _localShare.setItem("mba_muid" ,_localShare.getItem("mba_muid") ,1*365*24*60*60*1000 );//1年过期
                 }
 
                 //设置mba_sid
-                if(!tools.getItem("mba_sid")){
-                    tools.setItem("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
+                if(!_localShare.getItem("mba_sid")){
+                    _localShare.setItem("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
                 }else{
-                    tools.setItem("mba_sid" ,tools.getItem("mba_sid") ,30*60*1000 );//半小时过期
+                    _localShare.setItem("mba_sid" ,_localShare.getItem("mba_sid") ,30*60*1000 );//半小时过期
                 }
-            });
-        },
-        setUserIds: function(){
-            MPing.tools.localShare(function(){
-                var _localShare = this,
-                    tools = MPing.tools.Tools;
 
-                var uid = tools.getCookie("pinId");
-                this.options.uid = uid ? uid : "";
-                this.options.mba_muid = _localShare.getItem("mba_muid")
-                this.options.mba_sid = _localShare.getItem("mba_sid");
-
-                if( !this.options.mba_muid ){ //mba_muid过期
-                    _localShare.setItem("mba_muid" ,tools.getUniq() ,1*365*24*60*60*1000 );//1年过期
-                    this.options.mba_muid = _localShare.getItem("mba_muid");
-                }
-                if( !this.options.mba_sid ){ //mba_sid过期
-                    _localShare.setItem("mba_sid" ,(new Date()).getTime() +"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
-                    this.options.mba_sid = _localShare.getItem("mba_sid");
-                }
+                self.options.mba_muid = _localShare.getItem("mba_muid")
+                self.options.mba_sid = _localShare.getItem("mba_sid");
             });
         },
 
@@ -171,7 +159,6 @@
                  rData = {data:[] };
             tools.extend(rData, reportData['common']);
 
-            this.setUserIds();
             tools.extend(rData, this.options);
 
             if( request instanceof MPing.Request ){
