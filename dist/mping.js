@@ -2,7 +2,7 @@
 
     //静态值初始化
     var Options = {
-        ProjectId: 3, //项目ID
+        ProjectId: "3", //项目ID
         Biz: "mba",   //业务类型
         Key: "5YT%aC89$22OI@pQ",
         Method:{
@@ -25,10 +25,14 @@
 
         },
         Type: {
-            PV: 1,
-            PERFORMANCE: 2,
-            CLICK: 3,
-            ORDER: 4
+            PV: "1",
+            PERFORMANCE: "2",
+            CLICK: "3",
+            ORDER: "4"
+        },
+        Storage: {
+            current: "mba_cur_series",
+            cached: "mba_cached_series"
         }
     };
 
@@ -71,6 +75,7 @@
         //初始化
         _init: function(){
             this.initCommonData();
+            this.initUid();
         },
         initCommonData: function(){
             var tools = MPing.tools.Tools,
@@ -107,33 +112,59 @@
             common['resolu'] = window.innerWidth + "*" + window.innerHeight;
             common['token'] = md5.hex_md5( common['report_ts'] + Options['Key']);
         },
+        initUid:function(){
+            MPing.tools.localShare(function(){
+                var timestamp=(new Date()).getTime(),
+                    _localShare = this,
+                    tools = MPing.tools.Tools;
+                //设置mba_muid
+                if(!_localShare.getItem("mba_muid")){
+                    _localShare.setItem("mba_muid" ,tools.getUniq() ,1*365*24*60*60*1000 );//1年过期
+                }else{
+                    tools.setItem("mba_muid" ,tools.getItem("mba_muid") ,1*365*24*60*60*1000 );//1年过期
+                }
+
+                //设置mba_sid
+                if(!tools.getItem("mba_sid")){
+                    tools.setItem("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
+                }else{
+                    tools.setItem("mba_sid" ,tools.getItem("mba_sid") ,30*60*1000 );//半小时过期
+                }
+            });
+        },
         setUserIds: function(){
-            var tools = MPing.tools.Tools;
+            MPing.tools.localShare(function(){
+                var _localShare = this,
+                    tools = MPing.tools.Tools;
 
-            var uid = tools.getCookie("pin");
-            this.options.uid = uid ? uid : "";
-            this.options.mba_muid = tools.getCookie("mba_muid")
-            this.options.mba_sid = tools.getCookie("mba_sid");
+                var uid = tools.getCookie("pinId");
+                this.options.uid = uid ? uid : "";
+                this.options.mba_muid = _localShare.getItem("mba_muid")
+                this.options.mba_sid = _localShare.getItem("mba_sid");
 
-            if( !this.options.mba_muid ){ //mba_muid过期
-                tools.setCookie("mba_muid" ,tools.getUniq() ,1*365*24*60*60*1000 );//1年过期
-                this.options.mba_muid = tools.getCookie("mba_muid");
-            }
-            if( !this.options.mba_sid ){ //mba_sid过期
-                tools.setCookie("mba_sid" ,(new Date()).getTime() +"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
-                this.options.mba_sid = tools.getCookie("mba_sid");
-            }
+                if( !this.options.mba_muid ){ //mba_muid过期
+                    _localShare.setItem("mba_muid" ,tools.getUniq() ,1*365*24*60*60*1000 );//1年过期
+                    this.options.mba_muid = _localShare.getItem("mba_muid");
+                }
+                if( !this.options.mba_sid ){ //mba_sid过期
+                    _localShare.setItem("mba_sid" ,(new Date()).getTime() +"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
+                    this.options.mba_sid = _localShare.getItem("mba_sid");
+                }
+            });
         },
 
         //上报数据
         send: function( request ){
-            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
-            var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
-            var param = [];
-            param.push('data=' + sendData);
-            var url = interfaceUrl + param.join('&');
-            var image = new Image(1,1);
-            image.src = url;
+            var self = this;
+            MPing.tools.localShare(function(){
+                var sendData = encodeURIComponent( JSON.stringify( self.getReportData( request ) ));
+                var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
+                var param = [];
+                param.push('data=' + sendData);
+                var url = interfaceUrl + param.join('&');
+                var image = new Image(1,1);
+                image.src = url;
+            });
         },
         getReportData: function( request ){
             var tools = MPing.tools.Tools,
@@ -169,7 +200,7 @@
         var report_obj = {};
         for (var key in this) {
             if ( typeof this[ key ] !== "function" && key !== "name" ) {
-                report_obj[key] = this[ key ] ? this[ key ] : "";
+                report_obj[key] = this[ key ] ? (this[ key ]+"") : "";
             }
         }
         return report_obj;
@@ -249,7 +280,8 @@
      * @constructor
      * @example
      * @extends MPing.inputs.Request
-     * @param {String} eventId
+     * @param {String} eventId               事件Id
+     * @param {String} update                更新事件串
      * @property {String} type:"3",         上报类型：1.PV 2.性能 3.点击
      * @property {String} uid:"",           京东pin 未登录为空
      * @property {String} mba_muid:"",      新用户首次访问M页和Jshop时生成以上ID，只有在用户清除cookie时才会重新生成新ID。
@@ -272,15 +304,13 @@
         this.type = Options.Type.CLICK;
         this.event_id = eventId;
 
-        this.updateEventSeries();
         this.setTs("click_ts");
         this.setPageParam();
+        this.updateEventSeries();
     }
     Click.prototype = new Request();
     Click.prototype.updateEventSeries = function(){
-        if(this.event_id){
-            //MPing.EventSeries.updateSeries(this.event_id);
-        }
+        MPing.EventSeries && MPing.EventSeries.updateSeries(this);
     }
     Click.attachEvent = function( cClass ){
         cClass||(cClass = "J_ping");
@@ -321,46 +351,62 @@
     function AddCart(eventId, skuId) {
         Click.call(this, eventId, null);
 
-        this.skuId = skuId;
-        //this.addSeries();
+        //this.skuId = skuId;
+        this.addSeries(skuId);
     }
     AddCart.prototype = new Click();
-    AddCart.prototype.addSeries = function(){
-        if(this.skuId){
-            //MPing.EventSeries.addSeries(this.skuId);
-        }
+    AddCart.prototype.addSeries = function(id){
+        MPing.EventSeries.addSeries(id);
     }
 
     //删除购物车，删除sku对应事件串
     function RmCart(eventId, skuId) {
         Click.call(this, eventId, null);
 
-        this.skuId = skuId;
-        this.deleteSeries();
+        //this.skuId = skuId;
+        this.deleteSeries(skuId);
     }
     RmCart.prototype = new Click();
-    RmCart.prototype.deleteSeries = function(){
-        if(this.skuId){
-            //MPing.EventSeries.deleteSeries(this.skuId);
-        }
+    RmCart.prototype.deleteSeries = function(id){
+        MPing.EventSeries.deleteSeries(id);
     }
 
     //添加订单，提交并删除sku对应事件串
     function Order(skuId) {
         Request.call(this, "Order", null);
 
+        this.type = Options.Type.ORDER;
+
         this.skuId = skuId;
+
         this.setTs("order_ts");
-        this.deleteSeries();
+        this.setParams();
+        this.deleteSeries(skuId);
     }
     Order.prototype = new Request();
-    Order.prototype.deleteSeries = function(){
-        if(this.skuId){
-            //MPing.EventSeries.deleteSeries(this.skuId);
-        }
+    Order.prototype.deleteSeries = function(id){
+        MPing.EventSeries.deleteSeries(id);
     }
     Order.prototype.setPageParam = function(){}
-
+    Order.prototype.setParams = function() {
+        var report_obj = {},
+            tools = MPing.tools.Tools;
+        var self = this;
+        MPing.EventSeries.getSeriesById(this['skuId'], function(skuSeries){
+            if(skuSeries && tools.isObject(skuSeries)){
+                for(var key in skuSeries){
+                    var sObj = skuSeries[key];
+                    if( sObj && tools.isObject(sObj) ){
+                        var level = parseInt(sObj['level']);
+                        self['lv' + level + '_event_id'] = sObj['event_id'];
+                        self['lv' + level + '_event_param'] = sObj['event_param'];
+                        self['lv' + level + '_page_name'] = sObj['page_name'];
+                        self['lv' + level + '_page_param'] = sObj['page_param'];
+                    };
+                }
+            }
+        });
+    }
 
     /**
      * @namespace 该命名空间下包含用于基础的输入相关类型
@@ -373,125 +419,149 @@
     MPing.inputs.RmCart 	= RmCart;
     MPing.inputs.Order 	= Order;
 
+    //localstorage存储事件串
+    var EventSeriesLocal = {
+        getSeries: function(callback){
+            var ret;
+            MPing.tools.localShare(function(){
+                var _localShare = this,
+                    keys = Options['Storage'],
+                    current = _localShare.getItem(keys['current']),
+                    tools = MPing.tools.Tools;
 
-    //事件串
-    var EventSeriesCookie = {
-        updateSeries: function(eventId){
-            var curSeries = this.getCookiePart("mba_cur_e"),
-                eventLevel = eventId && MPing.events.map[eventId];
+                if( (current && tools.isObject(current)) ){
+                    ret = JSON.stringify(current);
+                }
 
-            if(!eventLevel) return;//找不到事件对应的等级，退出
+                if(tools.isFunction(callback)){
+                    callback.call(null ,ret);
+                }
+            });
+            return ret;
+        },
+        getCached: function(callback){
+            var ret;
+            MPing.tools.localShare(function(){
+                var _localShare = this,
+                    keys = Options['Storage'],
+                    cached = _localShare.getItem(keys['cached']),
+                    tools = MPing.tools.Tools;
 
-            var cur_arr, start;
-            !curSeries ? ( cur_arr = [], start = 0 ) : (cur_arr = curSeries.split("|"), start = parseInt(eventLevel)-1);
-            for(var i= start; i<5; i++ ){
-                cur_arr[i] = (i== parseInt(eventLevel)-1) ? eventId : "";
+                if( (cached && tools.isObject(cached)) ){
+                    ret = JSON.stringify(cached);
+                }
+
+                if(tools.isFunction(callback)){
+                    callback.call(null ,ret);
+                }
+            });
+            return ret;
+        },
+        writeSeries: function(series){
+            if(!series) return;
+
+            MPing.tools.localShare(function(){
+                var _localShare = this,
+                    keys = Options['Storage'],
+                    tools = MPing.tools.Tools,
+                    current;
+
+                try {
+                    current = JSON.parse(series);
+                    if( (current && tools.isObject(current)) ){
+                        _localShare.setItem(keys['current'], current);
+                    }
+                }catch(e){}
+            });
+        },
+
+        updateSeries: function(request){
+            if( request instanceof Request){
+                var eventId = request['event_id'], eventLevel = eventId && MPing.events.map[ eventId ],
+                    tools = MPing.tools.Tools;
+
+                if(eventLevel == undefined || eventLevel=="" || eventLevel == null) return;//找不到事件对应的等级，退出
+
+                MPing.tools.localShare(function(){
+                    var _localShare = this,
+                        eObj = {
+                            level: eventLevel,
+                            event_id: eventId,
+                            event_param: request['event_param'],
+                            page_name: request['page_name'],
+                            page_param: request['page_param']
+                        },
+                        keys = Options['Storage'];
+
+                    var curSeries = _localShare.getItem(keys['current']), start, index = parseInt(eventLevel)-1;
+
+                    !(curSeries && tools.isObject(curSeries)) ? ( curSeries = {}, start = 0 ) : ( start = index );
+                    for(var i= start; i<5; i++ ){
+                        curSeries[i] = (i== index) ? eObj : ""; //更新当前事件串
+                    }
+
+                    _localShare.setItem(keys['current'], curSeries);
+                });
             }
+        },
+        getSeriesById: function(id, callback){
+            var ret,
+                tools = MPing.tools.Tools;
 
-            this.setCookiePart("mba_cur_e", cur_arr.join("|"));
+            if( !(id && tools.isString(id)) ) return;
+
+            MPing.tools.localShare(function(){
+                var _localShare = this,
+                    keys = Options['Storage'],
+                    cached = _localShare.getItem(keys['cached']);
+
+                if(cached && tools.isObject(cached) && cached.hasOwnProperty(id)){
+                    ret = cached[id]; //返回sku对应的事件串以上报
+                }
+
+                if(tools.isFunction(callback)){
+                    callback.call(null ,ret);
+                }
+            });
+            return ret;
         },
         addSeries: function(id){
-            var comSeries = this.getCookiePart("mba_cur_com"),
-                curSeries = this.getCookiePart("mba_cur_e"),
-                comObj = {}, n, start, len;
+            var tools = MPing.tools.Tools;
 
-            if(!curSeries) return; //当前没有事件,不能保存sku对应的事件串
+            if( !(id && tools.isString(id)) ) return;
 
-            if(comSeries){
-                for(n = comSeries.split("!"), start = 0,len= n.length; start<len; start++){
-                    var f = n[start].split("=");
-                    comObj[f[0]] = f[1];
-                }
-            }
-            comObj[id] = curSeries;
-            this.setCookiePart("mba_cur_com", this.param(comObj, "=", "!"));
+            MPing.tools.localShare(function(){
+                var _localShare = this,
+                    keys = Options['Storage'],
+                    cached = _localShare.getItem(keys['cached']),
+                    current = _localShare.getItem(keys['current']);
+
+                (cached && tools.isObject(cached)) || (cached = {});
+                (current && tools.isObject(current)) || (current = {});
+
+                cached[id] = current;//设置sku对应的事件串数组
+                _localShare.setItem(keys['cached'], cached); //更新已缓存的事件串
+                _localShare.removeItem(keys['current']); //删除当前事件串
+            });
         },
         deleteSeries: function(id){
-            var comSeries = this.getCookiePart("mba_cur_com"),
-                comObj = {}, n, start, len;
+            var tools = MPing.tools.Tools;
 
-            if(!comSeries) return; //当前保存事件串，退出
+            if( !(id && tools.isString(id)) ) return;
 
-            for(n = comSeries.split("!"), start = 0,len= n.length; start<len; start++){
-                var f = n[start].split("=");
-                if (f[0] != a) {
-                    comObj[f[0]] = f[1];
-                }
-            }
-            this.setCookiePart("mba_cur_com", this.param(comObj, "=", "!"));
-        },
+            MPing.tools.localShare(function(){
+                var _localShare = this,
+                    keys = Options['Storage'],
+                    cached = _localShare.getItem(keys['cached']);
 
-        subCookieParts: {},
-
-        getCookiePart: function(){
-            try {
-                var name = "mba_event_series=", start = document.cookie.indexOf(name), len = null, ret = "";
-                if (!(start > -1))
-                    return null;
-                if (len = document.cookie.indexOf(";", start), -1 == len && (len = document.cookie.length), len = document.cookie.substring(start + name.length, len), 0 < len.length) {
-                    for (name = len.split("&"), start = 0, len = name.length; len > start; start++) {
-                        var f = name[start].split("=");
-                        if (decodeURIComponent(f[0]) == a) {
-                            ret = decodeURIComponent(f[1]);
-                            break
-                        }
-                    }
-                    return ret
+                if(cached && tools.isObject(cached) && cached.hasOwnProperty(id)){
+                    delete cached[id]; //删除sku对应的事件串
+                    _localShare.setItem(keys['cached'], cached); //更新已缓存的事件串
                 }
-            } catch (g) {
-                return null
-            }
-        },
-        setCookiePart: function(name, value){
-            if (value)
-                try {
-                    this.subCookieParts = this.getAllSubCookies(), name = name.toString(), value = value.toString(),
-                    this.subCookieParts[encodeURIComponent(name)] = encodeURIComponent(value), this.setSubCookieValue();
-                } catch (c) {
-                }
-        },
-        getAllSubCookies: function(){
-            var name = "mba_event_series=", start = document.cookie.indexOf(name), c = null, d = {};
-            if (start > -1) {
-                if (c = document.cookie.indexOf(";", start), -1 == c && (c = document.cookie.length), c = document.cookie.substring(start + name.length, c), 0 < c.length)
-                    for (name = c.split("&"), start = 0, c = name.length; c > start; start++) {
-                        var e = name[start].split("=");
-                        d[decodeURIComponent(e[0])] = decodeURIComponent(e[1])
-                    }
-                return d
-            }
-            return {}
-        },
-        setSubCookieValue: function(){
-            var name = "mba_event_series=", b = [];
-            for (var c in this.subCookieParts)
-                c && "function" != typeof this.subCookieParts[c] && b.push(c + "=" + this.subCookieParts[c]);
-            if(0 < b.length){
-                name += b.join("&"), name += "; path=/; domain=" + this.getDomain() + ";";
-                document.cookie = name, this.subCookieParts = {};
-            }
-        },
-        getDomain: function(){
-            return MPing.tools.Tools.getTopDomain();
-        },
-        param: function(obj,assign_symbol, and_symbol){
-            if (assign_symbol === undefined || assign_symbol === null) {
-                assign_symbol = "=";
-            }
-            if (and_symbol === undefined || and_symbol === null) {
-                and_symbol = "&";
-            }
-            var keyvalue_array = [];
-            for (var key in obj) {
-                if ( typeof this[ key ] !== "function") {
-                    keyvalue_array.push( (new Array(key, assign_symbol, this[key] )).join("") );
-                }
-            }
-            return keyvalue_array.join( and_symbol );
+            });
         }
     };
-    MPing.EventSeries = EventSeriesCookie;
-
+    MPing.EventSeries = EventSeriesLocal;
 
     function Tools(){}
     Tools.prototype = {
@@ -525,6 +595,15 @@
         isObject: function(obj) {
             var type = typeof obj;
             return type === 'object' && !!obj;
+        },
+        isArray: function(obj){
+            return Object.prototype.toString.call(obj) === '[object Array]';
+        },
+        isString: function(obj){
+            return Object.prototype.toString.call(obj) === '[object String]';
+        },
+        isFunction: function(obj){
+            return Object.prototype.toString.call(obj) === '[object Function]';
         },
 
         getCookie: function(name){  //取cookies函数
@@ -583,22 +662,7 @@
 
     var tools = new Tools();
 
-    (function(){
-        var timestamp=(new Date()).getTime();
-        //设置mba_muid
-        if(!tools.getCookie("mba_muid")){
-            tools.setCookie("mba_muid" ,tools.getUniq() ,1*365*24*60*60*1000 );//1年过期
-        }else{
-            tools.setCookie("mba_muid" ,tools.getCookie("mba_muid") ,1*365*24*60*60*1000 );//1年过期
-        }
 
-        //设置mba_sid
-        if(!tools.getCookie("mba_sid")){
-            tools.setCookie("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
-        }else{
-            tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
-        }
-    })();
 
     /**
      * @namespace 该命名空间下包含工具类以及相关方法（API），Tools模块
@@ -607,6 +671,7 @@
     MPing.tools || (MPing.tools = {});
     MPing.tools.Tools =  tools;
 
+    document.domain = tools.getTopDomain();
     window.MPing = MPing;
 }(window));;
 ;(function(window){
@@ -995,52 +1060,89 @@
         hex_md5 : hex_md5
     };
 
-}(window));;/**
+}(window));;(function(MPing, window, undefined) {
+    var _init = false,
+        _iframe = null,
+        _ready = false,
+        _handler = [],
+        _core = null;
+
+    MPing.tools.localShare = function(fn) {
+        if (false === _init) {
+            MPing.tools.localShare.onComplete = function() {
+                _core = _iframe.contentWindow.storageCore;
+                for (var i = 0, len = _handler.length; i < len; i++) {
+                    typeof _handler[i] === "function" && _handler[i].call(_core)
+                }
+                _ready = true;
+                _handler = null;
+                _iframe = null;
+                delete MPing.tools.localShare.onComplete
+            };
+
+            //var _prefix = ('https:' == document.location.protocol) ? G.prefix.st_ssl : G.prefix.st;
+            _iframe = document.createElement("IFRAME");
+            _iframe.src = 'http://h5.m.jd.com/active/track/proxy.html?v=xxxx';
+            _iframe.style.display = "none";
+            _init = true;
+            document.body.insertBefore(_iframe, document.body.firstChild);
+        }
+
+        if (_ready) {
+            typeof fn === "function" && fn.call(_core);
+        } else {
+            _handler.push(fn);
+        }
+    };
+
+    //预加载
+    MPing.tools.localShare();
+
+})(MPing, window);
+;/**
  * @fileoverview 这个文件是所有事件id与事件等级对应表
  */
 
 ;(function(window){
 
     var Events = {
-        'Home_Shortcut':1,
-        'Home_ProductList':1,
-        'Home_Productid':1,
-        'Home_FloorCustomize':1,
-        'Home_HandSeckill':1,
-        'Home_FloatingFloor':1,
-        'Home_GoodShopMore':1,
-        'Home_GoodShopCate':1,
         'StartPhoto_StartPic':1,
-        'Home_Search':1,
-        'Home_VSearch':1,
+        'NavigationBar_MyJD':1,
         'NavigationBar_Discover':1,
-        'Home_ThemeMore':1,
-        'Home_Scan':1,
-        'Home_FocusPic':1,
-        'Home_Floor':1,
         'NavigationBar_Home':1,
         'NavigationBar_Classification':1,
         'NavigationBar_Shopcart':1,
-        'NavigationBar_MyJD':1,
-        'HomeList_Productid':2,
-        'Classification_BCategory':2,
+        'Home_Shortcut':1,
+        'Home_ProductList':1,
+        'Home_FloorCustomize':1,
+        'Home_HandSeckill':1,
+        'Home_Floor':1,
+        'Home_FloatingFloor':1,
+        'Home_GoodShopCate':1,
+        'Home_Search':1,
+        'Home_VSearch':1,
+        'Home_ThemeCustom':1,
+        'Home_ThemeStreet':1,
+        'Home_FocusPic':1,
+        'Home_SeckillWord':1,
+        'Home_SeckillSlideIn':1,
+        'Home_Category':1,
+        'Home_BrandGuideSlideIn':1,
+        'Home_StreetSlideIn':1,
+        'Home_Scan':1,
+        'Search_Search':1,
+        'Home_ThemeMore':1,
         'Classification_CateCustomize':2,
         'Discover_Applications':2,
         'Discover_Xiaobing':2,
         'OrderList_BuyAgain':2,
         'OrderList_GotoShop':2,
         'MessageCenter_Productid':2,
-        'JDTopRank_Productid':2,
         'FloorCustomize_Productid':2,
-        'Search_VSearch':2,
-        'Classification_VSearch':2,
-        'Search_Searchthi':2,
-        'Search_History':2,
-        'Search_Hotword':2,
-        'Search_AssociativeWord':2,
         'MyFollow_Productid':2,
-        'MyFollow_Shopid':2,
         'MyJD_Ordersnotfinish':2,
+        'MyJD_MyFollow':2,
+        'MyJD_HistoryLog':2,
         'MyJD_GuessYouLike':2,
         'Shake_Result':2,
         'GoodShop_Shopid':2,
@@ -1048,65 +1150,111 @@
         'GoodShop_ProductSale':2,
         'ShopList_Productid':2,
         'MyJD_MyMessage':2,
+        'Presell_Productid':2,
+        'HandSeckill_Productid':2,
+        'HandSeckill_MoreOnSale':2,
+        'HandSeckill_ShopOnSale':2,
+        'Classification_BCategory':2,
+        'BCategory_activityid':2,
+        'ThemeStreet_GotoStreet':2,
+        'ThemeStreet_MoreRecommend':2,
+        'CutDown_Productid':2,
+        'Scan_Scan_Scan':2,
+        'Search_Scan':2,
+        'Discover_Scan':2,
+        'Search_Searchthi':2,
+        'Search_History':2,
+        'Search_Hotword':2,
+        'Search_AssociativeWord':2,
+        'Search_VSearch':2,
+        'Classification_VSearch':2,
+        'Discover_Story':2,
+        'Discover_Stroll':2,
+        'Discover_Activities':2,
+        'Discover_Shake':2,
+        'Discover_Nearby':2,
+        'Home_Productid':2,
+        'HomeList_Productid':2,
         'Search_TopLabel':2,
         'Search_MiddleLabel':2,
         'Search_OnehourLabel':2,
-        'Discover_Story':2,
-        'Discover_Activities':2,
-        'Discover_Scan':2,
-        'Discover_Shake':2,
-        'Discover_Stroll':2,
         'JDTopList_ProductID':2,
-        'MyJD_MyFollow':2,
-        'MyJD_MyCoupon':2,
-        'MyJD_HistoryLog':2,
-        'Search_Search':2,
-        'BCategory_MCategory':2,
-        'BCategory_activityid':2,
-        'HandSeckill_Productid':2,
-        'MCategory_SCategory':3,
         'Applications_Applications':3,
-        'Picture_Productid':3,
         'StockShelf_Productid':3,
         'XiaobingChat_Productid':3,
         'XiaobingChat_Activityid':3,
         'XiaobingChat_Shopid':3,
-        'Searchlist_Productid':3,
-        'GoodProduct_Productid':3,
-        'RecommendPro_Productid':3,
-        'RecommendPro_DirectBuy':3,
-        'Presell_Productid':2,
-        'Searchlist_VSearch':3,
+        'MyFollow_Shopid':3,
+        'Shopid_Search':3,
         'Shopid_ActivityBanner':3,
         'Shopid_Acitivityid':3,
         'Shopid_Productid':3,
         'ShopProductNew_Productid':3,
         'ShopProductSale_Productid':3,
+        'Activity_Productid':3,
+        'MCategory_SCategory':3,
+        'GoodProduct_GoodProductid':3,
+        'RecommendPro_RecommendProid':3,
+        'RecommendPro_DirectBuy':3,
+        'CutDownResult_GotoCart':3,
         'Stroll_Productid':3,
         'StrollWellChosen_Productid':3,
         'StrollRecommend_Productid':3,
         'StrollRecommend_EasyBuy':3,
         'StrollSimilar_ProductDetail':3,
-        'Activity_Productid':3,
-        'JDDongdong_Productid':3,
-        'DiscountPromotion_Productid':3,
-        'SystemNotice_Productid':3,
-        'ProductPrompt_Productid':3,
-        'Shopid_Search':3,
+        'Picture_Productid':3,
+        'Searchlist_Productid':3,
         'Searchlist_Moresupplier':3,
+        'Searchlist_VSearch':3,
         'Searchlist_ShopPopup':3,
         'Searchlist_Shopid':3,
-        'SCategory_Productid':3,
-        'Scan_Scan_Scan':3,
-        'Shake_ProProductid':3,
+        'Productlist_Productid':3,
         'Productdetail_Like':4,
-        'Productlist_Productid':4,
         'PushMessage_OpenMessage':5,
-        'Shopcart_GuessYouLike':5,
-        'Shopcart_Getresent':5,
         'Orderdetail_BuyAgain':5,
         'Orderdetail_Shopid':5,
-        'Shopcart_Label':5
+        'Shopcart_GuessYouLike':5,
+        'Shopcart_Label':5,
+        'Shopcart_Getresent':5,
+        'MessageCenter_Message':5,
+
+        //M事件
+        'MHome_Category':1,
+        'MHome_ShopCart':1,
+        'MHome_Recharge':1,
+        'MHome_Lottery':1,
+        'MHome_MyJD':1,
+        'MHome_Search':1,
+        'MHome_FocusPic':1,
+        'MHome_HandSecKill':1,
+        'MHome_Floor':1,
+        'MHome_Searchthi':2,
+        'BrandStreetSale_Activityid':2,
+        'BrandStreetSale_Productid':2,
+        'BrandStreetShow_FocusPic':2,
+        'BrandStreetShow_Activityid':2,
+        'MCategory_Searchthi':2,
+        'MCategory_SCategory':2,
+        'MHandSeckill_Productid':2,
+        'MMyJD_MyMessage':2,
+        'MMyJD_MyFollow':2,
+        'MMyJD_MyHistory':2,
+        'MMyJD_MyReserve':2,
+        'MMyJD_GuessYouLike':2,
+        'MMyFollow_Productid':2,
+        'Shopid_Productid':3,
+        'MProductlist_Productid':3,
+        'MActivity_Productid':3,
+        'Jshop_ProductID':3,
+        'Jshop_ProductID_Category':3,
+        'Jshop_CountDown':3,
+        'Jshop_GroupBuy':3,
+        'Jshop_ShopRec':3,
+        'Jshop_PromoRec':3,
+        'Jshop_PromoTurns':3,
+        'Jshop_PreSale':3,
+        'Jshop_ImgWord':3,
+        'Jshop_Html_Content':3
     };
 
     /**

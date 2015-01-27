@@ -1,5 +1,10 @@
-<html><head><style>.user_data{behavior:url(#default#userdata);}</style>
-</head><body><input type="hidden" class="user_data" id="share_core"/></body></html>
+<!DOCTYPE html>
+<html>
+<head>
+    <style>.user_data{behavior:url(#default#userdata);}</style>
+</head>
+<body>
+<input type="hidden" class="user_data" id="share_core"/>
 <script>
 var getHost = function(url) {
     var host = "null";
@@ -221,10 +226,12 @@ window.onload = function() {
     };
 
     try {
-        parent && parent.G && parent.G.app && parent.G.app.localShare && parent.G.app.localShare.onComplete();
+        parent && parent.MPing && parent.MPing.tools && parent.MPing.tools.localShare && parent.MPing.tools.localShare.onComplete();
     }
     catch(e) {
         console && console.log(e);
     }
 }
 </script>
+</body>
+</html>
