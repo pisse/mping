@@ -69,7 +69,10 @@
             this.ready = param;
         }
 
-        this.ready();
+        var self = this;
+        document.addEventListener("DOMContentLoaded", function(e) {
+            self.ready();
+        }, false);
     }
     MPing.prototype = {
         //初始化
@@ -136,7 +139,7 @@
                     _localShare.setItem("mba_sid" ,_localShare.getItem("mba_sid") ,30*60*1000 );//半小时过期
                 }
 
-                self.options.mba_muid = _localShare.getItem("mba_muid")
+                self.options.mba_muid = _localShare.getItem("mba_muid");
                 self.options.mba_sid = _localShare.getItem("mba_sid");
             });
         },
@@ -409,22 +412,26 @@
     //localstorage存储事件串
     var EventSeriesLocal = {
         getSeries: function(callback){
-            var ret;
+            var ret = {};
             MPing.tools.localShare(function(){
                 var _localShare = this,
                     keys = Options['Storage'],
                     current = _localShare.getItem(keys['current']),
+                    mba_uid = _localShare.getItem("mba_muid"),
+                    mba_sid = _localShare.getItem("mba_sid"),
                     tools = MPing.tools.Tools;
 
+                ret['mba_muid'] = mba_uid;
+                ret['mba_sid'] = mba_sid;
                 if( (current && tools.isObject(current)) ){
-                    ret = JSON.stringify(current);
+                    ret['event_series'] = current;
                 }
 
                 if(tools.isFunction(callback)){
                     callback.call(null ,ret);
                 }
             });
-            return ret;
+            return JSON.stringify(ret);
         },
         getCached: function(callback){
             var ret;
@@ -454,7 +461,8 @@
                     current;
 
                 try {
-                    current = JSON.parse(series);
+                    series = JSON.parse(series);
+                    current = series['event_series'];
                     if( (current && tools.isObject(current)) ){
                         _localShare.setItem(keys['current'], current);
                     }

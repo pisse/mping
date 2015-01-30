@@ -34,6 +34,10 @@
     };
 
     //预加载
-    MPing.tools.localShare();
+    var root = document.querySelector('body');
+
+    root.addEventListener("DOMContentLoaded", function(e) {
+        MPing.tools.localShare();
+    }, false);
 
 })(MPing, window);
