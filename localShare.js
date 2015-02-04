@@ -34,8 +34,8 @@
     };
 
     //预加载
-    document.addEventListener("DOMContentLoaded", function(e) {
-        MPing.tools.localShare();
-    }, false);
+    //document.addEventListener("DOMContentLoaded", function(e) {
+    MPing.tools.localShare();
+    //}, false);
 
 })(MPing, window);
