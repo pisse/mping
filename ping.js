@@ -134,7 +134,9 @@
             var self = this;
 
             var pinid = tools.getCookie("pinId");
+            var uid = tools.getCookie("pin");
             self.options.pinid = pinid ? pinid : "";
+            self.options.uid = uid ? uid : "";
 
             MPing.tools.localShare(function(){
                 var timestamp=(new Date()).getTime(),
@@ -186,6 +188,7 @@
             if( request instanceof MPing.Request ){
                 var pData = request.getReportObj();
                 pData['pinid'] = this.options['pinid'];
+                pData['uid'] = this.options['uid'];
                 rData.data.push( pData );
             }
             return rData;
@@ -199,6 +202,7 @@
     }
 
     MPing.prototype.options = {
+        uid: "",
         pinid: "",
         mba_muid: "",
         mba_sid: ""
