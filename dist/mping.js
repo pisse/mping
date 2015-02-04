@@ -45,6 +45,7 @@
             proj_id:"",       //项目ID
             biz:"",            //业务类型
             uid:"",           //京东pin 未登录为空
+            pinid:"",        //加密pin
             guid:"",          //用户唯一标识
             client:"",        //IOS:原生iphone  ANDROID:原生安卓 IPAD:原生IPAD WP:原生Windows Phone
                                     //IOS-M: iphone M页  ANDROID-M：安卓M页 IPAD-M：IPAD M页 WEIXIN-M：微信M页 WP-M：WP M页  M-M: M版M页
@@ -85,7 +86,7 @@
                 md5 =  MPing.tools.md5,
                 optionsClient = Options.Client,
                 common = reportData['common'],
-                userAgent = navigator.userAgent
+                userAgent = navigator.userAgent;
 
             if(userAgent.indexOf('jdapp') > -1){
                 var gUAInfo = userAgent.split(";");
@@ -114,12 +115,26 @@
             common['report_ts'] = tools.getCurTime();
             common['resolu'] = window.innerWidth + "*" + window.innerHeight;
             common['token'] = md5.hex_md5( common['report_ts'] + Options['Key']);
+            common['reserved1'] = document.referrer;
+            common['reserved3'] = this._reservedCookies();
+
+        },
+        _reservedCookies: function(){
+            var tools = MPing.tools.Tools,
+                r_cookies = ['__jda', '__jdv', '__jdb', '__jdu', '__jdb', 'mu_subsite', 'mt_xid', 'unpl'],
+                ret = [];
+
+            for(var i= 0, len = r_cookies.length;  i<len; i++){
+                ret.push( tools.getCookie( r_cookies[i] ) );
+            }
+
+            return ret.join("_").replace(/\|/g, "_");
         },
         initUid:function(){
             var self = this;
 
-            var uid = tools.getCookie("pinId");
-            self.options.uid = uid ? uid : "";
+            var pinid = tools.getCookie("pinId");
+            self.options.pinid = pinid ? pinid : "";
 
             MPing.tools.localShare(function(){
                 var timestamp=(new Date()).getTime(),
@@ -147,6 +162,10 @@
         //上报数据
         send: function( request ){
             var self = this;
+
+            //爬虫不上报
+            if(this.isSpider()) return;
+
             MPing.tools.localShare(function(){
                 var sendData = encodeURIComponent( JSON.stringify( self.getReportData( request ) ));
                 var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
@@ -166,15 +185,21 @@
 
             if( request instanceof MPing.Request ){
                 var pData = request.getReportObj();
-                pData['uid'] = this.options['uid'];
+                pData['pinid'] = this.options['pinid'];
                 rData.data.push( pData );
             }
             return rData;
+        },
+        isSpider: function(){
+            var ua =  navigator.userAgent;
+            var re_spider = /Googlebot|Feedfetcher-Google|Mediapartners-Google|Adsbot-Google|Sogou\s{1}web\s{1}spider|Sogou\s{1}inst\s{1}spider|Sogou\s{1}inst\s{1}spider\/4\.0|HaoSouSpider|360Spider|Baiduspider|bingbot|qihoobot|YoudaoBot|Sosospider|Sogou\s{1}web\s{1}spider|iaskspider|msnbot|Yahoo!\s{1}Slurp|Yahoo!\s{1}Slurp\s{1}China|yisouspider|msnbot/;
+            var ret = re_spider.test(ua);
+            return ret;
         }
     }
 
     MPing.prototype.options = {
-        uid: "",
+        pinid: "",
         mba_muid: "",
         mba_sid: ""
     };
@@ -223,6 +248,7 @@
      * @extends MPing.inputs.Request
      * @property {String}  type:"1",         //上报类型：1.PV 2.性能 3.点击
      * @property {String}  uid:"",           //京东pin 未登录为空
+     * @property {String}  pinid:"",           //京东加密pin 未登录为空
      * @property {String}  mba_muid:"",     //新用户首次访问M页和Jshop时生成以上ID，只有在用户清除cookie时才会重新生成新ID。
      * @property {String}  mba_sid:"",      //新访次内生成访次ID，sid随机生成，访次超过30分钟会重新生成ID。
      * @property {String}  uid_cat:"",       //1.微博登录 2.QQ登录
@@ -274,6 +300,7 @@
      * @param {String} update                更新事件串
      * @property {String} type:"3",         上报类型：1.PV 2.性能 3.点击
      * @property {String} uid:"",           京东pin 未登录为空
+     * @property {String}  pinid:"",        京东加密pin 未登录为空
      * @property {String} mba_muid:"",      新用户首次访问M页和Jshop时生成以上ID，只有在用户清除cookie时才会重新生成新ID。
      * @property {String} mba_sid:"",       新访次内生成访次ID，sid随机生成，访次超过30分钟会重新生成ID。
      * @property {String} click_ts:"",      点击事件发生时间戳
@@ -412,7 +439,9 @@
     //localstorage存储事件串
     var EventSeriesLocal = {
         getSeries: function(callback){
-            var ret = {};
+            var ret = {
+                m_source: '1'
+            };
             MPing.tools.localShare(function(){
                 var _localShare = this,
                     keys = Options['Storage'],
@@ -432,6 +461,12 @@
                 }
             });
             return JSON.stringify(ret);
+        },
+        getMSeries: function(){
+            var ret = this.getSeries();
+            var re_mSource = /(?:"m_source"):"(1)"/;
+            ret = ret.replace(re_mSource, '"m_source":"0"');
+            return ret;
         },
         getCached: function(callback){
             var ret;
@@ -668,7 +703,48 @@
 
     document.domain = tools.getTopDomain();
     window.MPing = MPing;
-}(window));;
+}(window));;(function(MPing, window, undefined) {
+    var _init = false,
+        _iframe = null,
+        _ready = false,
+        _handler = [],
+        _core = null;
+
+    MPing.tools.localShare = function(fn) {
+        if (false === _init) {
+            MPing.tools.localShare.onComplete = function() {
+                _core = _iframe.contentWindow.storageCore;
+                for (var i = 0, len = _handler.length; i < len; i++) {
+                    typeof _handler[i] === "function" && _handler[i].call(_core)
+                }
+                _ready = true;
+                _handler = null;
+                _iframe = null;
+                delete MPing.tools.localShare.onComplete
+            };
+
+            //var _prefix = ('https:' == document.location.protocol) ? G.prefix.st_ssl : G.prefix.st;
+            _iframe = document.createElement("IFRAME");
+            _iframe.src = 'http://h5.m.jd.com/active/track/proxy.html?v=xxxx';
+            _iframe.style.display = "none";
+            _init = true;
+            document.body.insertBefore(_iframe, document.body.firstChild);
+        }
+
+        if (_ready) {
+            typeof fn === "function" && fn.call(_core);
+        } else {
+            _handler.push(fn);
+        }
+    };
+
+    //预加载
+    //document.addEventListener("DOMContentLoaded", function(e) {
+        MPing.tools.localShare();
+    //}, false);
+
+})(MPing, window);
+;
 ;(function(window){
     /*
      * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
