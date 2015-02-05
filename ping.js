@@ -707,7 +707,6 @@
     var tools = new Tools();
 
 
-
     /**
      * @namespace 该命名空间下包含工具类以及相关方法（API），Tools模块
      * @memberOf Ping
