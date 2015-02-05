@@ -389,7 +389,14 @@
     }
     RmCart.prototype = new Click();
     RmCart.prototype.deleteSeries = function(id){
-        MPing.EventSeries.deleteSeries(id);
+        var tools = MPing.tools.Tools;
+        if(tools.isArray(id)){
+            for(var i= 0, len = id.length; i<len; i++){
+                MPing.EventSeries.deleteSeries(id[i]);
+            }
+        } else {
+            MPing.EventSeries.deleteSeries(id);
+        }
     }
 
     //添加订单，提交并删除sku对应事件串
@@ -542,7 +549,8 @@
             var ret,
                 tools = MPing.tools.Tools;
 
-            if( !(id && tools.isString(id)) ) return;
+            if( !id ) return;
+            id = id+"";
 
             MPing.tools.localShare(function(){
                 var _localShare = this,
@@ -562,7 +570,8 @@
         addSeries: function(id){
             var tools = MPing.tools.Tools;
 
-            if( !(id && tools.isString(id)) ) return;
+            if( !id ) return;
+            id = id+"";
 
             MPing.tools.localShare(function(){
                 var _localShare = this,
@@ -581,7 +590,8 @@
         deleteSeries: function(id){
             var tools = MPing.tools.Tools;
 
-            if( !(id && tools.isString(id)) ) return;
+            if( !id ) return;
+            id = id+"";
 
             MPing.tools.localShare(function(){
                 var _localShare = this,
