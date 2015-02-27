@@ -16,6 +16,9 @@
             ANDROID_M: {
                 UAname: 'android', value: 'ANDROID-M'
             },
+            IPAD_M: {
+                UAname: 'iPad', value: 'iPad-M'
+            },
             MICRO_M: {
                 UAname: 'MicroMessenger', value: 'WEIXIN-M'
             },
@@ -88,6 +91,7 @@
                 common = reportData['common'],
                 userAgent = navigator.userAgent;
 
+            //内嵌
             if(userAgent.indexOf('jdapp') > -1){
                 var gUAInfo = userAgent.split(";");
 
@@ -95,6 +99,8 @@
                     common['client'] = optionsClient['IOS_M']['value'] ;
                 }else if(gUAInfo[1] == optionsClient['ANDROID_M']['UAname']){
                     common['client'] = optionsClient['ANDROID_M']['value'] ;
+                }else if(gUAInfo[1] == optionsClient['IPAD_M']['UAname']){
+                    common['client'] = optionsClient['IPAD_M']['value'] ;
                 }
                 common['appv'] = gUAInfo[2];
                 common['osv'] = gUAInfo[3];
@@ -330,7 +336,8 @@
     Click.attachEvent = function( cClass ){
         cClass||(cClass = "J_ping");
         var _click = "touchstart" in window ? "touchstart" : "click",
-             root = document.querySelector('body');
+             root = document.querySelector('body'),
+            tools =  MPing.tools.Tools;
 
         root.addEventListener(_click, function(e) {
             //冒泡查找元素
@@ -349,6 +356,13 @@
                 click.event_param = target.getAttribute('report-eventparam') ? target.getAttribute('report-eventparam'): "";
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
                 mping.send(click);
+
+                /*if (tools.attr(target, 'href') && /http:\/\/.*?/.exec(tools.attr(target, 'href')) && tools.attr(target, 'target') !== '_blank' ) {
+                    e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                    setTimeout(function () {
+                        window.location.href = tools.attr(target, 'href');
+                    }, 200);
+                }*/
             }
         }, false);
     }
@@ -432,7 +446,7 @@
             var tools = MPing.tools.Tools;
             var ret = {
                 m_source: '1',
-                mba_uid : tools.getCookie("mba_muid"),
+                mba_muid : tools.getCookie("mba_muid"),
                 mba_sid : tools.getCookie("mba_sid")
             };
             return JSON.stringify(ret);
@@ -610,6 +624,12 @@
             return u.indexOf('jdapp') > -1 || !!u.match(/AppleWebKit.*Mobile.*/);
         },
 
+        attr: function(node, name){
+            var result;
+            return ( node && node.nodeType !== 1 ? undefined :
+                (!(result = node.getAttribute(name)) && name in node) ? node[name] : result
+                );
+        },
         getCookie: function(name){  //取cookies函数
             var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
             if(arr != null) return decodeURI(arr[2]); return null;
