@@ -122,6 +122,7 @@
             common['resolu'] = window.innerWidth + "*" + window.innerHeight;
             common['token'] = md5.hex_md5( common['report_ts'] + Options['Key']);
             common['reserved1'] = document.referrer;
+           // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
 
         },
@@ -382,10 +383,18 @@
 
         //this.skuId = skuId;
         //this.addSeries(skuId);
+        //this.reportAsOrder(skuId);
     }
     AddCart.prototype = new Click();
     AddCart.prototype.addSeries = function(id){
         MPing.EventSeries.addSeries(id);
+    }
+    AddCart.prototype.reportAsOrder = function(skuId){
+        if(skuId){
+            var order = new Order(skuId);
+            var mping = new MPing();
+            mping.send(order);
+        }
     }
 
     //删除购物车，删除sku对应事件串
@@ -445,17 +454,20 @@
         getSeries: function(callback){
             var tools = MPing.tools.Tools;
             var ret = {
-                m_source: '1',
+                m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
                 mba_muid : tools.getCookie("mba_muid"),
                 mba_sid : tools.getCookie("mba_sid")
             };
             return JSON.stringify(ret);
         },
-        getMSeries: function(){
-            var ret = this.getSeries();
-            var re_mSource = /(?:"m_source"):"(1)"/;
-            ret = ret.replace(re_mSource, '"m_source":"0"');
-            return ret;
+        androidSeries: function(){
+            var json_str = this.getSeries();
+
+            try{
+                window.AndriodPing.setSeries( json_str );
+            }catch(e){
+                //console.log(e);
+            }
         },
         writeSeries: function(series){
             if(!series) return;
@@ -620,8 +632,24 @@
             return Object.prototype.toString.call(obj) === '[object Function]';
         },
         isMobile: function(){
-            var u = navigator.userAgent;
-            return u.indexOf('jdapp') > -1 || !!u.match(/AppleWebKit.*Mobile.*/);
+            var u = navigator.userAgent,
+                flag = false;
+
+            if(u.indexOf('jdapp') > -1) {
+                flag = true;
+            } else {
+                var Agents = ["Android", "iPhone",
+                    "SymbianOS", "Windows Phone",
+                    "iPad", "iPod"];
+                for (var v = 0; v < Agents.length; v++) {
+                    if (u.indexOf(Agents[v]) > 0) {
+                        flag = true;
+                        break;
+                    }
+                }
+            }
+
+            return flag;
         },
 
         attr: function(node, name){
@@ -714,6 +742,6 @@
     MPing.tools || (MPing.tools = {});
     MPing.tools.Tools =  tools;
 
-    document.domain = tools.getTopDomain();
+    //document.domain = tools.getTopDomain();
     window.MPing = MPing;
 }(window));
