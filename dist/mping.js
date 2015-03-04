@@ -146,7 +146,8 @@
                 if(!tools.getCookie("mba_muid")){
                     tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
                 }else{
-                    tools.setCookie("mba_muid" ,tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
+                    var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
+                    tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
                 }
 
                 //设置mba_sid
@@ -596,12 +597,10 @@
             return time;
         },
         getUniq:function(){
-            var uniq = "";
-            for (var i = 1; i <= 28; i++) {
+            var uniq = (new Date()).getTime() + '-';
+            for (var i = 1; i <= 18; i++) {
                 var n = Math.floor(Math.random() * 16.0).toString(16);
                 uniq += n;
-                if ((i == 8) || (i == 12) || (i == 16) || (i == 20))
-                    uniq += "-";
             }
             return uniq;
         },
@@ -723,7 +722,8 @@
         if(!tools.getCookie("mba_muid")){
             tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
         }else{
-            tools.setCookie("mba_muid" ,tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
+            var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
+            tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
         }
 
         //设置mba_sid
