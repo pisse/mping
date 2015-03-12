@@ -250,7 +250,7 @@ document.onclick = function (e) {
         if(e.pageX || e.pageY){
             x=e.pageX; y=e.pageY;
         } else {
-            x=e.clientX + da.body.scrollLeft - da.body.clientLeft;
+            x=e.clientX + da.body.scrollLeft - da.body.clientLeft;//Êó±êµÄx×ø±ê
             y=e.clientY + da.body.scrollTop - da.body.clientTop;
         }
         log('d', 'c', cls || '-', x + 'x' + y, da.body.scrollWidth + 'x' + da.body.scrollHeight,offset_left);
