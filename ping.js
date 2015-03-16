@@ -114,14 +114,14 @@
                     common['client'] =  optionsClient['MM']['value']
                 }
             }
-
+            common['device'] = this._getOs();
             common['proj_id'] = Options['ProjectId'];
             common['biz'] = Options['Biz'];
             common['method'] = Options['Method']['bpReport'];
             common['report_ts'] = tools.getCurTime();
             common['resolu'] = window.innerWidth + "*" + window.innerHeight;
             common['token'] = md5.hex_md5( common['report_ts'] + Options['Key']);
-            common['reserved1'] = document.referrer;
+            common['reserved1'] = this._getShortRefer( document.referrer );
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
 
@@ -136,6 +136,22 @@
             }
 
             return ret.join("_").replace(/\|/g, "_");
+        },
+        _getShortRefer: function(url){
+            if(!url) return "";
+
+            if(url.indexOf("360buy.com")>-1 || url.indexOf("jd.com")>-1 ) return url;
+
+            var tools = MPing.tools.Tools;
+            if(url.indexOf("?") >-1){
+                return url.substr(0, url.indexOf("?")+1) + 'word=' + tools.getParameter(url, "word");
+            }else {
+                return url;
+            }
+        },
+        _getOs: function(){
+            var o = /(win|android|linux|nokia|ipad|iphone|ipod|mac|sunos|solaris)/.exec(navigator.platform.toLowerCase());
+            return o == null ? "other" : o[0];
         },
         initUid:function(){
             var tools = MPing.tools.Tools,
@@ -329,7 +345,7 @@
 
         this.setTs("click_ts");
         this.setPageParam();
-        //this.updateEventSeries();
+        this.updateEventSeries();
     }
     Click.prototype = new Request();
     Click.prototype.updateEventSeries = function(){
@@ -384,7 +400,7 @@
 
         //this.skuId = skuId;
         //this.addSeries(skuId);
-        //this.reportAsOrder(skuId);
+        this.reportAsOrder(skuId);
     }
     AddCart.prototype = new Click();
     AddCart.prototype.addSeries = function(id){
@@ -452,12 +468,14 @@
 
     //localstorage存储事件串
     var EventSeriesLocal = {
+        eventSeries: {},
         getSeries: function(callback){
             var tools = MPing.tools.Tools;
             var ret = {
                 m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
                 mba_muid : tools.getCookie("mba_muid"),
-                mba_sid : tools.getCookie("mba_sid")
+                mba_sid : tools.getCookie("mba_sid"),
+                event_series: this.eventSeries
             };
             return JSON.stringify(ret);
         },
@@ -474,19 +492,19 @@
             if(!series) return;
         },
 
-        updateSeries: function(eventId){
-            var curSeries = this.getCookiePart("mba_cur_e"),
+        updateSeries: function(req){
+            if( !MPing.tools.Tools.isEmbedded()) return;
+
+            var eventId = req['event_id'],
                 eventLevel = eventId && MPing.events && MPing.events.map[eventId];
 
             if(!eventLevel) return;//找不到事件对应的等级，退出
 
-            var cur_arr, start;
-            !curSeries ? ( cur_arr = [], start = 0 ) : (cur_arr = curSeries.split("|"), start = parseInt(eventLevel)-1);
-            for(var i= start; i<5; i++ ){
-                cur_arr[i] = (i== parseInt(eventLevel)-1) ? eventId : "";
-            }
-
-            this.setCookiePart("mba_cur_e", cur_arr.join("|"));
+            this.eventSeries['event_id'] = eventId;
+            this.eventSeries['event_level'] = eventLevel;
+            this.eventSeries['event_param'] = req['event_param'];
+            this.eventSeries['page_name'] = req['page_name'];
+            this.eventSeries['page_param'] = req['page_param'];
         },
         addSeries: function(id){
             var comSeries = this.getCookiePart("mba_cur_com"),
@@ -650,7 +668,9 @@
 
             return flag;
         },
-
+        isEmbedded: function(){
+            return navigator.userAgent.indexOf('jdapp') > -1 ;
+        },
         attr: function(node, name){
             var result;
             return ( node && node.nodeType !== 1 ? undefined :
@@ -708,6 +728,10 @@
                 r[q[i].substr(0, pos).replace(/[^a-zA-Z0-9_]/g, '')] = decodeURIComponent(q[i].substr(pos + 1));
             }
             return r;
+        },
+        getParameter: function(url, name) {
+            var f = url.match(RegExp("(^|&|\\?|#)(" + name + ")=([^&#]*)(&|$|#)", ""));
+            return f ? f[3] : null
         }
     };
 

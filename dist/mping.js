@@ -114,14 +114,14 @@
                     common['client'] =  optionsClient['MM']['value']
                 }
             }
-
+            common['device'] = this._getOs();
             common['proj_id'] = Options['ProjectId'];
             common['biz'] = Options['Biz'];
             common['method'] = Options['Method']['bpReport'];
             common['report_ts'] = tools.getCurTime();
             common['resolu'] = window.innerWidth + "*" + window.innerHeight;
             common['token'] = md5.hex_md5( common['report_ts'] + Options['Key']);
-            common['reserved1'] = document.referrer;
+            common['reserved1'] = this._getShortRefer( document.referrer );
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
 
@@ -136,6 +136,22 @@
             }
 
             return ret.join("_").replace(/\|/g, "_");
+        },
+        _getShortRefer: function(url){
+            if(!url) return "";
+
+            if(url.indexOf("360buy.com")>-1 || url.indexOf("jd.com")>-1 ) return url;
+
+            var tools = MPing.tools.Tools;
+            if(url.indexOf("?") >-1){
+                return url.substr(0, url.indexOf("?")+1) + 'word=' + tools.getParameter(url, "word");
+            }else {
+                return url;
+            }
+        },
+        _getOs: function(){
+            var o = /(win|android|linux|nokia|ipad|iphone|ipod|mac|sunos|solaris)/.exec(navigator.platform.toLowerCase());
+            return o == null ? "other" : o[0];
         },
         initUid:function(){
             var tools = MPing.tools.Tools,
@@ -329,7 +345,7 @@
 
         this.setTs("click_ts");
         this.setPageParam();
-        //this.updateEventSeries();
+        this.updateEventSeries();
     }
     Click.prototype = new Request();
     Click.prototype.updateEventSeries = function(){
@@ -384,7 +400,7 @@
 
         //this.skuId = skuId;
         //this.addSeries(skuId);
-        //this.reportAsOrder(skuId);
+        this.reportAsOrder(skuId);
     }
     AddCart.prototype = new Click();
     AddCart.prototype.addSeries = function(id){
@@ -452,12 +468,14 @@
 
     //localstorage存储事件串
     var EventSeriesLocal = {
+        eventSeries: {},
         getSeries: function(callback){
             var tools = MPing.tools.Tools;
             var ret = {
                 m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
                 mba_muid : tools.getCookie("mba_muid"),
-                mba_sid : tools.getCookie("mba_sid")
+                mba_sid : tools.getCookie("mba_sid"),
+                event_series: this.eventSeries
             };
             return JSON.stringify(ret);
         },
@@ -474,19 +492,19 @@
             if(!series) return;
         },
 
-        updateSeries: function(eventId){
-            var curSeries = this.getCookiePart("mba_cur_e"),
+        updateSeries: function(req){
+            if( !MPing.tools.Tools.isEmbedded()) return;
+
+            var eventId = req['event_id'],
                 eventLevel = eventId && MPing.events && MPing.events.map[eventId];
 
             if(!eventLevel) return;//找不到事件对应的等级，退出
 
-            var cur_arr, start;
-            !curSeries ? ( cur_arr = [], start = 0 ) : (cur_arr = curSeries.split("|"), start = parseInt(eventLevel)-1);
-            for(var i= start; i<5; i++ ){
-                cur_arr[i] = (i== parseInt(eventLevel)-1) ? eventId : "";
-            }
-
-            this.setCookiePart("mba_cur_e", cur_arr.join("|"));
+            this.eventSeries['event_id'] = eventId;
+            this.eventSeries['event_level'] = eventLevel;
+            this.eventSeries['event_param'] = req['event_param'];
+            this.eventSeries['page_name'] = req['page_name'];
+            this.eventSeries['page_param'] = req['page_param'];
         },
         addSeries: function(id){
             var comSeries = this.getCookiePart("mba_cur_com"),
@@ -650,7 +668,9 @@
 
             return flag;
         },
-
+        isEmbedded: function(){
+            return navigator.userAgent.indexOf('jdapp') > -1 ;
+        },
         attr: function(node, name){
             var result;
             return ( node && node.nodeType !== 1 ? undefined :
@@ -708,6 +728,10 @@
                 r[q[i].substr(0, pos).replace(/[^a-zA-Z0-9_]/g, '')] = decodeURIComponent(q[i].substr(pos + 1));
             }
             return r;
+        },
+        getParameter: function(url, name) {
+            var f = url.match(RegExp("(^|&|\\?|#)(" + name + ")=([^&#]*)(&|$|#)", ""));
+            return f ? f[3] : null
         }
     };
 
@@ -744,7 +768,173 @@
 
     //document.domain = tools.getTopDomain();
     window.MPing = MPing;
-}(window));;
+}(window));;/**
+ * @fileoverview 这个文件是所有事件id与事件等级对应表
+ */
+
+;(function(window){
+
+    var Events = {
+        'StartPhoto_StartPic':1,
+        'NavigationBar_MyJD':1,
+        'NavigationBar_Discover':1,
+        'NavigationBar_Home':1,
+        'NavigationBar_Classification':1,
+        'NavigationBar_Shopcart':1,
+        'Home_Shortcut':1,
+        'Home_ProductList':1,
+        'Home_FloorCustomize':1,
+        'Home_HandSeckill':1,
+        'Home_Floor':1,
+        'Home_FloatingFloor':1,
+        'Home_GoodShopCate':1,
+        'Home_Search':1,
+        'Home_VSearch':1,
+        'Home_ThemeCustom':1,
+        'Home_ThemeStreet':1,
+        'Home_FocusPic':1,
+        'Home_SeckillWord':1,
+        'Home_SeckillSlideIn':1,
+        'Home_Category':1,
+        'Home_BrandGuideSlideIn':1,
+        'Home_StreetSlideIn':1,
+        'Home_Scan':1,
+        'Search_Search':1,
+        'Home_ThemeMore':1,
+        'Classification_CateCustomize':2,
+        'Discover_Applications':2,
+        'Discover_Xiaobing':2,
+        'OrderList_BuyAgain':2,
+        'OrderList_GotoShop':2,
+        'MessageCenter_Productid':2,
+        'FloorCustomize_Productid':2,
+        'MyFollow_Productid':2,
+        'MyJD_Ordersnotfinish':2,
+        'MyJD_MyFollow':2,
+        'MyJD_HistoryLog':2,
+        'MyJD_GuessYouLike':2,
+        'Shake_Result':2,
+        'GoodShop_Shopid':2,
+        'GoodShop_ProductNew':2,
+        'GoodShop_ProductSale':2,
+        'ShopList_Productid':2,
+        'MyJD_MyMessage':2,
+        'Presell_Productid':2,
+        'HandSeckill_Productid':2,
+        'HandSeckill_MoreOnSale':2,
+        'HandSeckill_ShopOnSale':2,
+        'Classification_BCategory':2,
+        'BCategory_activityid':2,
+        'ThemeStreet_GotoStreet':2,
+        'ThemeStreet_MoreRecommend':2,
+        'CutDown_Productid':2,
+        'Scan_Scan_Scan':2,
+        'Search_Scan':2,
+        'Discover_Scan':2,
+        'Search_Searchthi':2,
+        'Search_History':2,
+        'Search_Hotword':2,
+        'Search_AssociativeWord':2,
+        'Search_VSearch':2,
+        'Classification_VSearch':2,
+        'Discover_Story':2,
+        'Discover_Stroll':2,
+        'Discover_Activities':2,
+        'Discover_Shake':2,
+        'Discover_Nearby':2,
+        'Home_Productid':2,
+        'HomeList_Productid':2,
+        'Search_TopLabel':2,
+        'Search_MiddleLabel':2,
+        'Search_OnehourLabel':2,
+        'JDTopList_ProductID':2,
+        'Applications_Applications':3,
+        'StockShelf_Productid':3,
+        'XiaobingChat_Productid':3,
+        'XiaobingChat_Activityid':3,
+        'XiaobingChat_Shopid':3,
+        'MyFollow_Shopid':3,
+        'Shopid_Search':3,
+        'Shopid_ActivityBanner':3,
+        'Shopid_Acitivityid':3,
+        'Shopid_Productid':3,
+        'ShopProductNew_Productid':3,
+        'ShopProductSale_Productid':3,
+        'Activity_Productid':3,
+        'MCategory_SCategory':3,
+        'GoodProduct_GoodProductid':3,
+        'RecommendPro_RecommendProid':3,
+        'RecommendPro_DirectBuy':3,
+        'CutDownResult_GotoCart':3,
+        'Stroll_Productid':3,
+        'StrollWellChosen_Productid':3,
+        'StrollRecommend_Productid':3,
+        'StrollRecommend_EasyBuy':3,
+        'StrollSimilar_ProductDetail':3,
+        'Picture_Productid':3,
+        'Searchlist_Productid':3,
+        'Searchlist_Moresupplier':3,
+        'Searchlist_VSearch':3,
+        'Searchlist_ShopPopup':3,
+        'Searchlist_Shopid':3,
+        'Productlist_Productid':3,
+        'Productdetail_Like':4,
+        'PushMessage_OpenMessage':5,
+        'Orderdetail_BuyAgain':5,
+        'Orderdetail_Shopid':5,
+        'Shopcart_GuessYouLike':5,
+        'Shopcart_Label':5,
+        'Shopcart_Getresent':5,
+        'MessageCenter_Message':5,
+
+        //M事件
+        'MHome_Category':1,
+        'MHome_ShopCart':1,
+        'MHome_Recharge':1,
+        'MHome_Lottery':1,
+        'MHome_MyJD':1,
+        'MHome_Search':1,
+        'MHome_FocusPic':1,
+        'MHome_HandSecKill':1,
+        'MHome_Floor':1,
+        'MHome_Searchthi':2,
+        'BrandStreetSale_Activityid':2,
+        'BrandStreetSale_Productid':2,
+        'BrandStreetShow_FocusPic':2,
+        'BrandStreetShow_Activityid':2,
+        'MCategory_Searchthi':2,
+        'MCategory_SCategory':2,
+        'MHandSeckill_Productid':2,
+        'MMyJD_MyMessage':2,
+        'MMyJD_MyFollow':2,
+        'MMyJD_MyHistory':2,
+        'MMyJD_MyReserve':2,
+        'MMyJD_GuessYouLike':2,
+        'MMyFollow_Productid':2,
+        'Shopid_Productid':3,
+        'MProductlist_Productid':3,
+        'MActivity_Productid':3,
+        'Jshop_ProductID':3,
+        'Jshop_ProductID_Category':3,
+        'Jshop_CountDown':3,
+        'Jshop_GroupBuy':3,
+        'Jshop_ShopRec':3,
+        'Jshop_PromoRec':3,
+        'Jshop_PromoTurns':3,
+        'Jshop_PreSale':3,
+        'Jshop_ImgWord':3,
+        'Jshop_Html_Content':3
+    };
+
+    /**
+     * @namespace 该命名空间下包含事件
+     * @memberOf ping
+     */
+    MPing.events = {};
+    MPing.events.map=  Events;
+
+}(window));
+;
 ;(function(window){
     /*
      * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
