@@ -655,17 +655,9 @@
             if(u.indexOf('jdapp') > -1) {
                 flag = true;
             } else {
-                var Agents = ["Android", "iPhone",
-                    "SymbianOS", "Windows Phone",
-                    "iPad", "iPod"];
-                for (var v = 0; v < Agents.length; v++) {
-                    if (u.indexOf(Agents[v]) > 0) {
-                        flag = true;
-                        break;
-                    }
-                }
+                var o = /(win|mac|sunos|solaris)/.exec(navigator.platform.toLowerCase());
+                flag = o == null ? true : false
             }
-
             return flag;
         },
         isEmbedded: function(){
@@ -768,4 +760,13 @@
 
     //document.domain = tools.getTopDomain();
     window.MPing = MPing;
+
+
+    /*AMD support*/
+    /*if (typeof define === 'function' && define.amd) {
+        define('MPing', [], function() {
+            return MPing;
+        });
+    }*/
+
 }(window));
