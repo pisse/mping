@@ -1,43 +1,63 @@
-(function(window){
+//     ping.js 1.0.2
+
+(function(root, factory) {
+    /*AMD support*/
+    if (typeof define === 'function' && define.amd) {
+        define(['events','md5'], function(events, md5) {
+            // Export global even in AMD case in case this script is loaded with
+            // others that may still expect a global Backbone.
+            root.MPing = factory(root, events, md5);
+            return root.MPing;
+        });
+
+       // Finally, as a browser global.
+    } else {
+        root.MPing = factory(root, null,null);
+    }
+
+}(this, function(window, events, md5){
 
     //静态值初始化
     var Options = {
-        ProjectId: "3", //项目ID
-        Biz: "mba",   //业务类型
-        Key: "5YT%aC89$22OI@pQ",
-        Method:{
-            bpReport: 'bp.report',
-            bpSearch: 'bp.search'
-        },
-        Client: {
-            IOS_M: {
-                UAname: 'iPhone', value: 'IOS-M'
+            ProjectId: "3", //项目ID
+            Biz: "mba",   //业务类型
+            Key: "5YT%aC89$22OI@pQ",
+            Method:{
+                bpReport: 'bp.report',
+                bpSearch: 'bp.search'
             },
-            ANDROID_M: {
-                UAname: 'android', value: 'ANDROID-M'
-            },
-            IPAD_M: {
-                UAname: 'iPad', value: 'iPad-M'
-            },
-            MICRO_M: {
-                UAname: 'MicroMessenger', value: 'WEIXIN-M'
-            },
-            MM: {
-                UAname: 'MM', value: 'M-M'
-            }
+            Client: {
+                IOS_M: {
+                    UAname: 'iPhone', value: 'IOS-M'
+                },
+                ANDROID_M: {
+                    UAname: 'android', value: 'ANDROID-M'
+                },
+                IPAD_M: {
+                    UAname: 'iPad', value: 'iPad-M'
+                },
+                MICRO_M: {
+                    UAname: 'MicroMessenger', value: 'WEIXIN-M'
+                },
+                MM: {
+                    UAname: 'MM', value: 'M-M'
+                }
 
-        },
-        Type: {
-            PV: "1",
-            PERFORMANCE: "2",
-            CLICK: "3",
-            ORDER: "4"
-        },
-        Storage: {
-            current: "mba_cur_series",
-            cached: "mba_cached_series"
-        }
-    };
+            },
+            Type: {
+                PV: "1",
+                PERFORMANCE: "2",
+                CLICK: "3",
+                ORDER: "4"
+            },
+            Storage: {
+                current: "mba_cur_series",
+                cached: "mba_cached_series"
+            }
+        };
+
+    var md = md5;//md5模块
+    window.MPing_M || ( window.MPing_M={});
 
     //上报数据
     var reportData = {
@@ -86,7 +106,7 @@
         },
         initCommonData: function(){
             var tools = MPing.tools.Tools,
-                md5 =  MPing.tools.md5,
+                md5 =  md || MPing_M.tools.md5,
                 optionsClient = Options.Client,
                 common = reportData['common'],
                 userAgent = navigator.userAgent;
@@ -468,6 +488,7 @@
 
     //localstorage存储事件串
     var EventSeriesLocal = {
+        events: events || (MPing_M.events = MPing_M.events || {}),
         eventSeries: {},
         getSeries: function(callback){
             var tools = MPing.tools.Tools;
@@ -493,10 +514,11 @@
         },
 
         updateSeries: function(req){
-            if( !MPing.tools.Tools.isEmbedded()) return;
+            //if( !MPing.tools.Tools.isEmbedded()) return;
 
             var eventId = req['event_id'],
-                eventLevel = eventId && MPing.events && MPing.events.map[eventId];
+                events = this.events,
+                eventLevel = eventId && events && events.map[eventId];
 
             if(!eventLevel) return;//找不到事件对应的等级，退出
 
@@ -758,15 +780,8 @@
     MPing.tools || (MPing.tools = {});
     MPing.tools.Tools =  tools;
 
-    //document.domain = tools.getTopDomain();
-    window.MPing = MPing;
+    //window.MPing = MPing;
 
+    return MPing;
 
-    /*AMD support*/
-    /*if (typeof define === 'function' && define.amd) {
-        define('MPing', [], function() {
-            return MPing;
-        });
-    }*/
-
-}(window));
+}));

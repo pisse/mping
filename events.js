@@ -224,11 +224,22 @@
         'MPayFinish_HomeMain':5
     };
 
-    /**
-     * @namespace 该命名空间下包含事件
-     * @memberOf ping
-     */
-    MPing.events = {};
-    MPing.events.map=  Events;
+
+    /*AMD support*/
+    if (typeof define === 'function' && define.amd) {
+        define(function(){
+            return {
+                map: Events
+            }
+        });
+    } else {
+        /**
+         * @namespace 该命名空间下包含事件
+         * @memberOf ping
+         */
+        window.MPing_M || (window.MPing_M={});
+        MPing_M.events = MPing_M.events || {};
+        MPing_M.events.map=  Events;
+    }
 
 }(window));

@@ -380,9 +380,23 @@
       return (num << cnt) | (num >>> (32 - cnt));
     }
 
-    MPing.tools || (MPing.tools = {});
-    MPing.tools.md5 =  {
-        hex_md5 : hex_md5
-    };
+    /*AMD support*/
+    if (typeof define === 'function' && define.amd) {
+        define(function() {
+            return {
+                hex_md5 : hex_md5
+            };
+        });
+    } else {
+        /**
+         * @namespace 该命名空间下包含md5插件
+         * @memberOf ping
+         */
+        window.MPing_M || (window.MPing_M={});
+        MPing_M.tools = MPing_M.tools || {};
+        MPing_M.tools.md5=  {
+            hex_md5 : hex_md5
+        };
+    }
 
 }(window));
