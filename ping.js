@@ -56,7 +56,6 @@
             }
         };
 
-    var md = md5;//md5模块
     window.MPing_M || ( window.MPing_M={});
 
     //上报数据
@@ -106,7 +105,7 @@
         },
         initCommonData: function(){
             var tools = MPing.tools.Tools,
-                md5 =  md || MPing_M.tools.md5,
+                md =  md5 || MPing_M.tools.md5,
                 optionsClient = Options.Client,
                 common = reportData['common'],
                 userAgent = navigator.userAgent;
@@ -140,7 +139,7 @@
             common['method'] = Options['Method']['bpReport'];
             common['report_ts'] = tools.getCurTime();
             common['resolu'] = window.innerWidth + "*" + window.innerHeight;
-            common['token'] = md5.hex_md5( common['report_ts'] + Options['Key']);
+            common['token'] = md.hex_md5( common['report_ts'] + Options['Key']);
             common['reserved1'] = this._getShortRefer( document.referrer );
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
@@ -488,7 +487,6 @@
 
     //localstorage存储事件串
     var EventSeriesLocal = {
-        events: events || (MPing_M.events = MPing_M.events || {}),
         eventSeries: {},
         getSeries: function(callback){
             var tools = MPing.tools.Tools;
@@ -514,11 +512,11 @@
         },
 
         updateSeries: function(req){
-            //if( !MPing.tools.Tools.isEmbedded()) return;
+            if( !MPing.tools.Tools.isEmbedded()) return;
 
             var eventId = req['event_id'],
-                events = this.events,
-                eventLevel = eventId && events && events.map[eventId];
+                e = events || MPing_M.events || {},
+                eventLevel = eventId && e && e.map[eventId];
 
             if(!eventLevel) return;//找不到事件对应的等级，退出
 
