@@ -102,6 +102,7 @@
                 }else if(gUAInfo[1] == optionsClient['IPAD_M']['UAname']){
                     common['client'] = optionsClient['IPAD_M']['value'] ;
                 }
+                common['device'] = common['client'];
                 common['appv'] = gUAInfo[2];
                 common['osv'] = gUAInfo[3];
                 common['guid'] = gUAInfo[4];
@@ -113,8 +114,9 @@
                 }else{
                     common['client'] =  optionsClient['MM']['value']
                 }
+                common['device'] = this._getOs();
             }
-            common['device'] = this._getOs();
+
             common['proj_id'] = Options['ProjectId'];
             common['biz'] = Options['Biz'];
             common['method'] = Options['Method']['bpReport'];
@@ -150,7 +152,8 @@
             }
         },
         _getOs: function(){
-            var o = /(win|android|linux|nokia|ipad|iphone|ipod|mac|sunos|solaris)/.exec(navigator.platform.toLowerCase());
+            var ua = navigator.userAgent.toLowerCase(), m = /android|iphone|ipad|ipod|windows phone|symbianos|nokia|bb/,
+                p = /linux|windows|mac|sunos|solaris/, o = m.exec(ua) || p.exec(ua);
             return o == null ? "other" : o[0];
         },
         initUid:function(){
@@ -345,7 +348,7 @@
 
         this.setTs("click_ts");
         this.setPageParam();
-        this.updateEventSeries();
+        //this.updateEventSeries();
     }
     Click.prototype = new Request();
     Click.prototype.updateEventSeries = function(){
@@ -373,6 +376,7 @@
                 var mping = new MPing();
                 click.event_param = target.getAttribute('report-eventparam') ? target.getAttribute('report-eventparam'): "";
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
+                click.updateEventSeries();
                 mping.send(click);
 
                 /*if (tools.attr(target, 'href') && /http:\/\/.*?/.exec(tools.attr(target, 'href')) && tools.attr(target, 'target') !== '_blank' ) {
