@@ -780,6 +780,7 @@
 ;(function(window){
 
     var Events = {
+        'MVirtual_ProductDetail_Expose':1,
         'MHome_FocusPic':1,
         'Mhome_Classification':1,
         'Mhome_Cart':1,
@@ -789,11 +790,22 @@
         'MHome_HandSeckill':1,
         'MHome_ActivitiesInFloors':1,
         'MHome_ActivitiesInFloors':1,
-        'MHome_Searchthi':1,
+        'MHome_Searchthi':2,
+        'MHome_Search':1,
         'MHome_SearchDropDownAssociationalWords':1,
         'MHome_SearchDropDownHistoryWords':1,
         'MHome_SearchButton':1,
         'MHome_AirTicket':1,
+        'MHome_SearchButton':2,
+        'MHome_Search':1,
+        'MProductList_Search':1,
+        'MSearch_Search':1,
+        'MSearch_SearchButton':2,
+        'MSearch_Searchthi':2,
+        'MSearch_SearchDropDownAssociationalWords':2,
+        'MSearch_HistoryRecords':2,
+        'MSearch_HotWords':2,
+        'MSearch_Productid':3,
         'MCommonHead_NavigateButton':1,
         'MCommonHead_home':1,
         'MCommonHead_CategorySearch':1,
@@ -805,10 +817,13 @@
         'MDownLoadFloat_OpenNow':1,
         'MGroupBuy_ChannelIcons':2,
         'MJingDouHome_Activity':2,
+        'MJingDouHome_JindouExCoupon':2,
         'MJingDouHome_JingdouBuyLottery':2,
+        'MJingDouHome_Jump':2,
+        'MJingDouHome_Cut':2,
         'MJingDouHome_ProductPic':2,
-        'MJingDouCheckinSuccess_Share':2,
         'MJingDouShare_GetMyJingdou':2,
+        'MJingDouJigsaw_Jigsaw_Expose':2,
         'MMyJDOrders_Categories':2,
         'MMyJDFollowed_Commodities':2,
         'MMyJDFollowed_Shops':2,
@@ -825,6 +840,7 @@
         'MHandSecKill_Commodity':2,
         'MHandSecKill_Tag':2,
         'MHandSecKill_GotoAPPA':2,
+        'MProductShow_ProductSku':2,
         'Jshop_FocusPic':4,
         'Jshop_ProductID':4,
         'Jshop_CategoryTab':4,
@@ -918,7 +934,6 @@
         'MMCDDownLoad_DownloadNow':4,
         'MMCD_AddToCart':4,
         'MMCD_GoRegister':4,
-
         'MTSWCJingCoupon_GetVouchers':4,
         'MTSWCFirstLinkVote_Submit':4,
         'MTSWCFirstLinkVoteResult_Next':4,
@@ -929,7 +944,6 @@
         'MTSWCStarVoteWin_Next':4,
         'MTSWCScore_GetVouchers':4,
         'MTSWCScore_MoreFunInvestment':4,
-
         'MobileWare_TreasureBoxEntrance':4,
         'MMobileWareLocate_Search':4,
         'MMobileWareLocate_Searchthi':4,
@@ -996,7 +1010,10 @@
         'MPayFinish_GetJDBean':5,
         'MPayFinish_AllOrders':5,
         'MPayFinish_HandSecKill':5,
-        'MPayFinish_HomeMain':5
+        'MPayFinish_HomeMain':5,
+        'MLOCOffLineProductDetail_BuyNow':2,
+        'MLOCShopList_Call':3,
+        'MLOCCheckOut_Submit':4
     };
 
     /**
