@@ -142,11 +142,16 @@
         _getShortRefer: function(url){
             if(!url) return "";
 
-            if(url.indexOf("360buy.com")>-1 || url.indexOf("jd.com")>-1 ) return url;
+            if(url.indexOf("360buy.com")>-1 || url.indexOf("jd.com")>-1 || url.length<128) return url;
 
             var tools = MPing.tools.Tools;
+            var keywords = ["word","wd", "text","p","keyword","q"], q=[];
             if(url.indexOf("?") >-1){
-                return url.substr(0, url.indexOf("?")+1) + 'word=' + tools.getParameter(url, "word");
+                for(var i=0; i<keywords.length; i++){
+                    var v = tools.getParameter(url, keywords[i]);
+                    v && q.push( keywords[i]+"="+v );
+                }
+                return url.substr(0, url.indexOf("?")+1) + q.join("&");
             }else {
                 return url;
             }
