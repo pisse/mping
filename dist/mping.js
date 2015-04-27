@@ -448,7 +448,7 @@
 
         this.type = Options.Type.ORDER;
 
-        this.skuId = skuId;
+        this.prod_id = skuId;
 
         this.setTs("order_ts");
         //this.setParams();
