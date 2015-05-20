@@ -376,11 +376,17 @@
                 }
             }
             if( target ){
-                var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "";
+                var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "",
+                    page_name = target.getAttribute('report-pagename') ? target.getAttribute('report-pagename'): "",
+                    page_param = target.getAttribute('report-pageparam') ? target.getAttribute('report-pageparam'): "";
+
                 var click = new MPing.inputs.Click( eventId );
                 var mping = new MPing();
                 click.event_param = target.getAttribute('report-eventparam') ? target.getAttribute('report-eventparam'): "";
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
+                if(page_name) click.page_name = page_name;
+                if(page_param) click.page_param = page_param;
+
                 click.updateEventSeries();
                 mping.send(click);
 
