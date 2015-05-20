@@ -192,7 +192,7 @@
         },
 
         //上报数据
-        send: function( request ){
+        send: function( request, callback ){
 
             if(this.isSpider()) return; //爬虫不上报
 
@@ -202,6 +202,11 @@
             param.push('data=' + sendData);
             var url = interfaceUrl + param.join('&');
             var image = new Image(1,1);
+            image.onload = image.onerror = image.onabort = function() {
+                image.onload = image.onerror = image.onabort = null;
+                image = null;
+                callback && callback(url)
+            };
             image.src = url;
         },
         getReportData: function( request ){
@@ -302,6 +307,8 @@
         this.setTs("page_ts");
         this.setPageParam();
         this.setSourceParam();
+        //abtest: record click report time spend
+        this.setClickSpends();
     }
     PV.prototype = new Request();
     PV.prototype.setSourceParam = function(){
@@ -317,6 +324,12 @@
                 this[key] = searchObj[key];
             }
         }
+    }
+    //abtest: record click report time spend
+    PV.prototype.setClickSpends = function(){
+        var tools = MPing.tools.Tools;
+        var t = tools.getParameter(location.href, "mAbtestClick");
+        this.reserved4 = t;
     }
 
     /**
@@ -376,20 +389,35 @@
                 }
             }
             if( target ){
-                var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "";
+                var href = tools.attr(target, 'href');
+                var redirect = (function(){
+                    return function(){
+                        if( href && /http:\/\/.*?/.exec(href) ) window.location.href = href;
+                    }
+                })();
+
+                var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "",
+                    page_name = target.getAttribute('report-pagename') ? target.getAttribute('report-pagename'): "",
+                    page_param = target.getAttribute('report-pageparam') ? target.getAttribute('report-pageparam'): "";
+
                 var click = new MPing.inputs.Click( eventId );
                 var mping = new MPing();
                 click.event_param = target.getAttribute('report-eventparam') ? target.getAttribute('report-eventparam'): "";
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
-                click.updateEventSeries();
-                mping.send(click);
+                if(page_name) click.page_name = page_name;
+                if(page_param) click.page_param = page_param;
 
-                /*if (tools.attr(target, 'href') && /http:\/\/.*?/.exec(tools.attr(target, 'href')) && tools.attr(target, 'target') !== '_blank' ) {
-                    e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                    setTimeout(function () {
-                        window.location.href = tools.attr(target, 'href');
-                    }, 200);
-                }*/
+                click.updateEventSeries();
+                mping.send(click, redirect);
+
+                if (href && /http:\/\/.*?/.exec(href)
+                    && tools.attr(target, 'target') !== '_blank') {
+                        e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                        var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
+                        setTimeout(function(){
+                            window.location.href = href;
+                        }, jump_delay);
+                }
             }
         }, false);
     }
