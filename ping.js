@@ -422,14 +422,13 @@
                         mping.send(click);
                     } else if(Abtest_flag == "abtest_1"){// 100ms
                         mping.send(click, redirect);
-                        if ( href && /http:\/\/.*?/.exec(href)
-                            && tools.attr(target, 'target') !== '_blank') {
-                                 e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                                 var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
-                                 setTimeout(function(){
-                                     var end_timestamp = new Date().getTime();
-                                     window.location.href = href +"m_c_t=timeout|" + (end_timestamp-start_timestamp);
-                                 }, jump_delay);
+                        if ( href && /http:\/\/.*?/.exec(href) && tools.isMobile() ) {
+                             e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                             var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
+                             setTimeout(function(){
+                                 var end_timestamp = new Date().getTime();
+                                 window.location.href = href +"m_c_t=timeout|" + (end_timestamp-start_timestamp);
+                             }, jump_delay);
                             }
                     } else if(Abtest_flag == "abtest_2"){// localstorage
                         MPing.tools.lstg.setItem('mba_click', mping.getSendUrl(click));
