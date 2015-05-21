@@ -63,6 +63,10 @@
         }
     };
 
+    //abtest flag, reserved4
+    var Abtest_flag, //abtest_0:normal, abtest_1: 100ms, abtest_2: localstorage
+        Abtest_url = 'http://sale.jd.com/m/act/aJvdfB2SmC.html';
+
     /**
      * MPing核心库，用于开辟一个程序入口
      */
@@ -127,6 +131,8 @@
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
 
+            //abtest
+            common['reserved4'] = Abtest_flag;
         },
         _reservedCookies: function(){
             var tools = MPing.tools.Tools,
@@ -208,6 +214,15 @@
                 callback && callback(url)
             };
             image.src = url;
+        },
+        //上报完整url
+        getSendUrl: function(request){
+            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
+            var param = [];
+            param.push('data=' + sendData);
+            var url = interfaceUrl + param.join('&');
+            return url;
         },
         getReportData: function( request ){
             var tools = MPing.tools.Tools,
@@ -307,8 +322,6 @@
         this.setTs("page_ts");
         this.setPageParam();
         this.setSourceParam();
-        //abtest: record click report time spend
-        this.setClickSpends();
     }
     PV.prototype = new Request();
     PV.prototype.setSourceParam = function(){
@@ -324,12 +337,6 @@
                 this[key] = searchObj[key];
             }
         }
-    }
-    //abtest: record click report time spend
-    PV.prototype.setClickSpends = function(){
-        var tools = MPing.tools.Tools;
-        var t = tools.getParameter(location.href, "mAbtestClick");
-        this.reserved4 = t;
     }
 
     /**
@@ -392,7 +399,8 @@
                 var href = tools.attr(target, 'href');
                 var redirect = (function(){
                     return function(){
-                        if( href && /http:\/\/.*?/.exec(href) ) window.location.href = href;
+                        var end_timestamp = new Date().getTime();
+                        if( href && /http:\/\/.*?/.exec(href) ) window.location.href = href +"m_c_t=onload|" + (end_timestamp-start_timestamp);
                     }
                 })();
 
@@ -406,18 +414,31 @@
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
                 if(page_name) click.page_name = page_name;
                 if(page_param) click.page_param = page_param;
-
                 click.updateEventSeries();
-                mping.send(click, redirect);
 
-                if (href && /http:\/\/.*?/.exec(href)
-                    && tools.attr(target, 'target') !== '_blank') {
-                        e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                        var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
-                        setTimeout(function(){
-                            window.location.href = href;
-                        }, jump_delay);
+                var start_timestamp = new Date().getTime();
+                if(location.href.indexOf(Abtest_url) >-1 ){
+                    if(Abtest_flag == "abtest_0"){ //normal
+                        mping.send(click);
+                    } else if(Abtest_flag == "abtest_1"){// 100ms
+                        mping.send(click, redirect);
+                        if ( href && /http:\/\/.*?/.exec(href)
+                            && tools.attr(target, 'target') !== '_blank') {
+                                 e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                                 var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
+                                 setTimeout(function(){
+                                     var end_timestamp = new Date().getTime();
+                                     window.location.href = href +"m_c_t=timeout|" + (end_timestamp-start_timestamp);
+                                 }, jump_delay);
+                            }
+                    } else if(Abtest_flag == "abtest_2"){// localstorage
+                        MPing.tools.lstg.setItem('mba_click', mping.getSendUrl(click));
+                    }
+                } else{
+                    mping.send(click);
                 }
+
+
             }
         }, false);
     }
@@ -761,6 +782,17 @@
         getParameter: function(url, name) {
             var f = url.match(RegExp("(^|&|\\?|#)(" + name + ")=([^&#]*)(&|$|#)", ""));
             return f ? f[3] : null
+        },
+
+        getABTestFlag: function(){
+            var abtest_flag,
+                cur_href = location.href.indexOf("?")>-1 ? location.href.substr(0,location.href.indexOf("?")) : location.href;
+            if(Abtest_url == cur_href ){
+                abtest_flag = "abtest_" + parseInt(Math.random()*1000) %3;
+            } else {
+                abtest_flag = this.getParameter(location.href, "m_c_t");
+            }
+            return abtest_flag;
         }
     };
 
@@ -785,6 +817,10 @@
         }else{
             tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
         }
+
+        //设置Abtest_flag
+        Abtest_flag = tools.getABTestFlag();
+
     })();
 
 
@@ -797,7 +833,6 @@
 
     //document.domain = tools.getTopDomain();
     window.MPing = MPing;
-
 
     /*AMD support*/
     /*if (typeof define === 'function' && define.amd) {

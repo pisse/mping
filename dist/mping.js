@@ -63,6 +63,10 @@
         }
     };
 
+    //abtest flag, reserved4
+    var Abtest_flag, //abtest_0:normal, abtest_1: 100ms, abtest_2: localstorage
+        Abtest_url = 'http://sale.jd.com/m/act/aJvdfB2SmC.html';
+
     /**
      * MPing核心库，用于开辟一个程序入口
      */
@@ -127,6 +131,8 @@
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
 
+            //abtest
+            common['reserved4'] = Abtest_flag;
         },
         _reservedCookies: function(){
             var tools = MPing.tools.Tools,
@@ -208,6 +214,15 @@
                 callback && callback(url)
             };
             image.src = url;
+        },
+        //上报完整url
+        getSendUrl: function(request){
+            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
+            var param = [];
+            param.push('data=' + sendData);
+            var url = interfaceUrl + param.join('&');
+            return url;
         },
         getReportData: function( request ){
             var tools = MPing.tools.Tools,
@@ -307,8 +322,6 @@
         this.setTs("page_ts");
         this.setPageParam();
         this.setSourceParam();
-        //abtest: record click report time spend
-        this.setClickSpends();
     }
     PV.prototype = new Request();
     PV.prototype.setSourceParam = function(){
@@ -324,12 +337,6 @@
                 this[key] = searchObj[key];
             }
         }
-    }
-    //abtest: record click report time spend
-    PV.prototype.setClickSpends = function(){
-        var tools = MPing.tools.Tools;
-        var t = tools.getParameter(location.href, "mAbtestClick");
-        this.reserved4 = t;
     }
 
     /**
@@ -392,7 +399,8 @@
                 var href = tools.attr(target, 'href');
                 var redirect = (function(){
                     return function(){
-                        if( href && /http:\/\/.*?/.exec(href) ) window.location.href = href;
+                        var end_timestamp = new Date().getTime();
+                        if( href && /http:\/\/.*?/.exec(href) ) window.location.href = href +"m_c_t=onload|" + (end_timestamp-start_timestamp);
                     }
                 })();
 
@@ -406,18 +414,31 @@
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
                 if(page_name) click.page_name = page_name;
                 if(page_param) click.page_param = page_param;
-
                 click.updateEventSeries();
-                mping.send(click, redirect);
 
-                if (href && /http:\/\/.*?/.exec(href)
-                    && tools.attr(target, 'target') !== '_blank') {
-                        e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                        var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
-                        setTimeout(function(){
-                            window.location.href = href;
-                        }, jump_delay);
+                var start_timestamp = new Date().getTime();
+                if(location.href.indexOf(Abtest_url) >-1 ){
+                    if(Abtest_flag == "abtest_0"){ //normal
+                        mping.send(click);
+                    } else if(Abtest_flag == "abtest_1"){// 100ms
+                        mping.send(click, redirect);
+                        if ( href && /http:\/\/.*?/.exec(href)
+                            && tools.attr(target, 'target') !== '_blank') {
+                                 e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                                 var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
+                                 setTimeout(function(){
+                                     var end_timestamp = new Date().getTime();
+                                     window.location.href = href +"m_c_t=timeout|" + (end_timestamp-start_timestamp);
+                                 }, jump_delay);
+                            }
+                    } else if(Abtest_flag == "abtest_2"){// localstorage
+                        MPing.tools.lstg.setItem('mba_click', mping.getSendUrl(click));
+                    }
+                } else{
+                    mping.send(click);
                 }
+
+
             }
         }, false);
     }
@@ -761,6 +782,17 @@
         getParameter: function(url, name) {
             var f = url.match(RegExp("(^|&|\\?|#)(" + name + ")=([^&#]*)(&|$|#)", ""));
             return f ? f[3] : null
+        },
+
+        getABTestFlag: function(){
+            var abtest_flag,
+                cur_href = location.href.indexOf("?")>-1 ? location.href.substr(0,location.href.indexOf("?")) : location.href;
+            if(Abtest_url == cur_href ){
+                abtest_flag = "abtest_" + parseInt(Math.random()*1000) %3;
+            } else {
+                abtest_flag = this.getParameter(location.href, "m_c_t");
+            }
+            return abtest_flag;
         }
     };
 
@@ -785,6 +817,10 @@
         }else{
             tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
         }
+
+        //设置Abtest_flag
+        Abtest_flag = tools.getABTestFlag();
+
     })();
 
 
@@ -798,13 +834,224 @@
     //document.domain = tools.getTopDomain();
     window.MPing = MPing;
 
-
     /*AMD support*/
     /*if (typeof define === 'function' && define.amd) {
         define('MPing', [], function() {
             return MPing;
         });
     }*/
+
+}(window));;;(function(window){
+
+    (function(w, undefined) {
+        if (w.localStorage !== undefined && !(window.attachEvent && navigator.userAgent.indexOf('Opera') === -1)) {
+            w.mbaShareCore = w.localStorage;
+            return;
+        }
+
+        function UserData(file) {
+            this.dom = document.getElementById("share_core");
+            this.file = file || "user_data_default";
+        };
+
+        UserData.prototype = {
+            setItem: function(k, v) {
+                this.dom.setAttribute(k, v);
+                this.dom.save(this.file);
+            },
+
+            getItem: function(k) {
+                try { // 处理文件可能被QQ管家之类的东东删掉的情况
+                    this.dom.load(this.file);
+                }
+                catch(e) {
+                    return null;
+                }
+                return this.dom.getAttribute(k);
+            },
+
+            removeItem: function(k) {
+                this.dom.removeAttribute(k);
+                this.dom.save(this.file);
+            },
+
+            clear: function() {
+                try { // 处理文件可能被QQ管家之类的东东删掉的情况
+                    this.dom.load(this.file);
+                    now = new Date(new Date().getTime() - 1);
+                    this.dom.expires = now.toUTCString();
+                    this.dom.save(this.file);
+                } catch(e) {}
+            }
+        };
+
+        w.mbaShareCore = new UserData("local_storage");
+    })(window);
+
+    var _encode = (function() {
+        var escapeMap = {
+            "\b": "\\b",
+            "\t": "\\t",
+            "\n": "\\n",
+            "\f": "\\f",
+            "\r": "\\r",
+            '"': '\\"',
+            "\\": "\\\\"
+        };
+        function encodeString(source) {
+            if (/["\\\x00-\x1f]/.test(source)) {
+                source = source.replace(/["\\\x00-\x1f]/g,
+                    function(match) {
+                        var c = escapeMap[match];
+                        if (c) {
+                            return c
+                        }
+                        c = match.charCodeAt();
+                        return "\\u00" + Math.floor(c / 16).toString(16) + (c % 16).toString(16)
+                    })
+            }
+            return '"' + source + '"'
+        }
+        function encodeArray(source) {
+            var result = ["["],
+                l = source.length,
+                preComma,
+                i,
+                item;
+            for (i = 0; i < l; i++) {
+                item = source[i];
+                switch (typeof item) {
+                    case "undefined":
+                    case "function":
+                    case "unknown":
+                        break;
+                    default:
+                        if (preComma) {
+                            result.push(",")
+                        }
+                        result.push(_encode(item));
+                        preComma = 1
+                }
+            }
+            result.push("]");
+            return result.join("")
+        }
+        function pad(source) {
+            return source < 10 ? "0" + source: source
+        }
+        function encodeDate(source) {
+            return '"' + source.getFullYear() + "-" + pad(source.getMonth() + 1) + "-" + pad(source.getDate()) + "T" + pad(source.getHours()) + ":" + pad(source.getMinutes()) + ":" + pad(source.getSeconds()) + '"'
+        }
+        return function(value) {
+            switch (typeof value) {
+                case "undefined":
+                    return "undefined";
+                case "number":
+                    return isFinite(value) ? String(value) : "null";
+                case "string":
+                    return encodeString(value);
+                case "boolean":
+                    return String(value);
+                default:
+                    if (value === null) {
+                        return "null"
+                    } else {
+                        if (value instanceof Array) {
+                            return encodeArray(value)
+                        } else {
+                            if (value instanceof Date) {
+                                return encodeDate(value)
+                            } else {
+                                var result = ["{"],
+                                    encode = _encode,
+                                    preComma,
+                                    item;
+                                for (key in value) {
+                                    if (value.hasOwnProperty(key)) {
+                                        item = value[key];
+                                        switch (typeof item) {
+                                            case "undefined":
+                                            case "unknown":
+                                            case "function":
+                                                break;
+                                            default:
+                                                if (preComma) {
+                                                    result.push(",")
+                                                }
+                                                preComma = 1;
+                                                result.push(encode(key) + ":" + encode(item))
+                                        }
+                                    }
+                                }
+                                result.push("}");
+                                return result.join("")
+                            }
+                        }
+                    }
+            }
+        }
+    })();
+
+    var _decode = function(string, secure) {
+        if (typeof(string) != "string" || !string.length) {
+            return null
+        }
+        if (secure && !(/^[,:{}\[\]0-9.\-+Eaeflnr-u \n\r\t]*$/).test(string.replace(/\\./g, "@").replace(/"[^"\\\n\r]*"/g, ""))) {
+            return null
+        }
+        try {
+            return eval("(" + string + ")")
+        } catch(e) {
+            return {}
+        }
+    }
+
+    var storageCore = {
+        setItem : function(key, value, expires) {
+            var data = {
+                'data' : value,
+                'expires' : expires !== undefined ? ( new Date().getTime() + ( parseInt(expires, 10) || 0 ) ) : 0
+            };
+            mbaShareCore.setItem(key, _encode(data));
+        },
+
+        getItem : function(key) {
+            var ret = null,
+                val = mbaShareCore.getItem(key);
+            if (val) {
+                val = _decode( val );
+                if ( val.expires ===0 ||  new Date().getTime() < val.expires ) {
+                    ret = val.data;
+                }
+                else {
+                    this.removeItem(key);
+                }
+            }
+
+            return ret;
+        },
+
+        removeItem : function(key) {
+            mbaShareCore.removeItem(key);
+        },
+
+        clear : function() {
+            mbaShareCore.clear();
+        }
+    };
+
+    MPing.tools || (MPing.tools = {});
+    MPing.tools.lstg =  storageCore;
+
+    try{
+        //上报localstg里面的click并上报
+        var mba_click = storageCore.getItem("mba_click");
+        if(mba_click){
+            var image = new Image(1,1);
+            image.src = mba_click;
+        }
+    } catch(e){}
+
 
 }(window));;/**
  * @fileoverview 这个文件是所有事件id与事件等级对应表
