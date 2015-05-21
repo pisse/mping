@@ -206,6 +206,7 @@
         if(mba_click){
             var image = new Image(1,1);
             image.src = mba_click;
+            storageCore.removeItem("mba_click");
         }
     } catch(e){}
 
