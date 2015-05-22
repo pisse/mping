@@ -191,8 +191,8 @@
             this.options.mba_sid = m_sid ? m_sid : "";
         },
 
-        //上报数据
-        send: function( request ){
+        //图片上报数据
+        send: function( request ,callback){
 
             if(this.isSpider()) return; //爬虫不上报
 
@@ -202,7 +202,27 @@
             param.push('data=' + sendData);
             var url = interfaceUrl + param.join('&');
             var image = new Image(1,1);
+            image.onload = function(){
+                image.onload = null;
+                image = null;
+                callback && callback();
+            };
             image.src = url;
+        },
+        //ajax上报
+        sendByRequest: function(request, callback){
+            var xhr =  new window.XMLHttpRequest();
+            xhr.open("POST", "http://stat.m.jd.com/stat/access.jpg", true);
+            xhr.setRequestHeader("Content-Type", "text/plain");
+            xhr.onreadystatechange = function(){
+                if(xhr.readyState == 4){
+                    callback && callback();
+                    xhr = null;
+                }
+            };
+
+            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            xhr.send(sendData);
         },
         getReportData: function( request ){
             var tools = MPing.tools.Tools,
@@ -376,20 +396,20 @@
                 }
             }
             if( target ){
-                var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "";
+                var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "",
+                    page_name = target.getAttribute('report-pagename') ? target.getAttribute('report-pagename'): "",
+                    page_param = target.getAttribute('report-pageparam') ? target.getAttribute('report-pageparam'): "";
+
                 var click = new MPing.inputs.Click( eventId );
                 var mping = new MPing();
                 click.event_param = target.getAttribute('report-eventparam') ? target.getAttribute('report-eventparam'): "";
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
-                click.updateEventSeries();
-                mping.send(click);
+                if(page_name) click.page_name = page_name;
+                if(page_param) click.page_param = page_param;
 
-                /*if (tools.attr(target, 'href') && /http:\/\/.*?/.exec(tools.attr(target, 'href')) && tools.attr(target, 'target') !== '_blank' ) {
-                    e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                    setTimeout(function () {
-                        window.location.href = tools.attr(target, 'href');
-                    }, 200);
-                }*/
+                click.updateEventSeries();
+                //mping.send(click);
+                mping.sendByRequest(click);
             }
         }, false);
     }
