@@ -36,6 +36,10 @@
         Storage: {
             current: "mba_cur_series",
             cached: "mba_cached_series"
+        },
+        MCookie: {
+            sessionCookieTimeout: 30*60*1000, //半小时
+            visitorCookieTimeout: 1*180*24*60*60*1000 //半年
         }
     };
 
@@ -166,29 +170,23 @@
                 timestamp=(new Date()).getTime();
 
             if(tools.isMobile()){
-                //设置mba_muid
-                if(!tools.getCookie("mba_muid")){
-                    tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
-                }else{
-                    var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
-                    tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
-                }
-
-                //设置mba_sid
-                if(!tools.getCookie("mba_sid")){
-                    tools.setCookie("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
-                }else{
-                    tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
-                }
+                var mcookie = new MCookie();
+                this.options.mba_muid = mcookie.getMuid();
+                this.options.mba_sid = mcookie.getSid();
+                this.options.mba_seq = mcookie.getSeq();
             }
 
-            var pinid = tools.getCookie("pinId"), uid = tools.getCookie("pin"),
-                m_uid = tools.getCookie("mba_muid"), m_sid = tools.getCookie("mba_sid");
+            //内嵌页
+            if(tools.isEmbedded()){
+                this.options.pv_sid = mcookie.getSid();
+                this.options.pv_seq = mcookie.getSeq();
+            }
+
+            var pinid = tools.getCookie("pinId"),
+                uid = tools.getCookie("pin");
 
             this.options.pinid = pinid ? pinid : "";
             this.options.uid = uid ? uid : "";
-            this.options.mba_muid = m_uid ? m_uid : "";
-            this.options.mba_sid = m_sid ? m_sid : "";
         },
 
         //图片上报数据
@@ -251,7 +249,11 @@
         uid: "",
         pinid: "",
         mba_muid: "",
-        mba_sid: ""
+        mba_sid: "",
+        mba_seq: "",
+
+        pv_sid: "", //内嵌页与app共同维护
+        pv_seq: "" //内嵌页与app共同维护
     };
     MPing.prototype.ready = function ( ) {}
 
@@ -396,6 +398,13 @@
                 }
             }
             if( target ){
+                var href = tools.attr(target, 'href');
+                var redirect = (function(){
+                    return function(){
+                        if( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) window.location.href = href;
+                    }
+                })();
+
                 var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "",
                     page_name = target.getAttribute('report-pagename') ? target.getAttribute('report-pagename'): "",
                     page_param = target.getAttribute('report-pageparam') ? target.getAttribute('report-pageparam'): "";
@@ -408,8 +417,16 @@
                 if(page_param) click.page_param = page_param;
 
                 click.updateEventSeries();
-                //mping.send(click);
-                mping.sendByRequest(click);
+                mping.send(click);
+                //mping.sendByRequest(click);
+
+                if (href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
+                     e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                     setTimeout(function () {
+                        window.location.href = href;
+                     }, 100);
+                 }
+
             }
         }, false);
     }
@@ -499,13 +516,19 @@
     var EventSeriesLocal = {
         eventSeries: {},
         getSeries: function(callback){
-            var tools = MPing.tools.Tools;
+            var tools = MPing.tools.Tools,
+                mcookie = new MCookie();
             var ret = {
-                m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
-                mba_muid : tools.getCookie("mba_muid"),
-                mba_sid : tools.getCookie("mba_sid"),
+                m_source:  tools.isEmbedded() ? '1' : "0",
+                mba_muid : mcookie.getMuid(),
+                mba_sid : mcookie.getSid(),
                 event_series: this.eventSeries
             };
+            if(tools.isEmbedded()){
+                ret["pv_sid"] = mcookie.getSid();
+                ret["pv_seq"] = mcookie.getSeq();
+                ret['pv_timestamp'] = new Date().getTime();
+            }
             return JSON.stringify(ret);
         },
         androidSeries: function(){
@@ -739,6 +762,10 @@
             return a ? 0 < a.length ? a[0].substr(0, a[0].length - 1) : void 0 : document.domain
         },
 
+        contains:  function(str, sub){
+            return (str["indexOf"](sub) > -1);
+        },
+
         getSearchObj: function(url){
             url || (url = location.search);
             var q = (url + '').replace(/(&amp;|\?)/g, "&").split('&');
@@ -758,25 +785,100 @@
 
     var tools = new Tools();
 
+    var MCookie = function(){
+        //单例
+        if(!MCookie._instance){
+            MCookie._instance = this;
+            this.initialize();
+            return MCookie._instance;
+        }
+
+        var _mbaMuidSeq,
+            _mbaSidSeq;
+
+        //读取mba_muid
+        this.getMuid = function(){
+            this.setMuid();
+            return  _mbaMuidSeq[0];
+        };
+        //读取mba_sid
+        this.getSid = function(){
+            this.setSid();
+            return _mbaSidSeq[0];
+        };
+
+        //读取mba_seq
+        this.getSeq = function(){
+            this.setSid();
+            return _mbaSidSeq[1];
+        };
+
+        this.setMuid = function(){
+            if(!tools.getCookie("mba_muid")){
+                _mbaMuidSeq[0] = tools.getUniq();
+                _mbaMuidSeq[1] = 1;
+            }else {
+                _mbaMuidSeq = tools.getCookie("mba_muid").split(".");
+                if(_mbaMuidSeq[1]==undefined){
+                    _mbaMuidSeq[1]=1;
+                }
+                _mbaMuidSeq[1] = tools.getCookie("mba_sid") ? _mbaMuidSeq[1] : (_mbaMuidSeq[1]*1+1);
+            }
+            this.setMuidCookie();
+        };
+        this.setSid = function( type){
+            //内嵌页使用app带过来的pv_sid,pv_seq
+            if(tools.isEmbedded()){
+                this.setPVSid();
+                return;
+            }
+
+            if(!tools.getCookie("mba_sid")){
+                _mbaSidSeq[0] = new Date().getTime() + "" + parseInt(Math.random()*9999999999999999);
+                //pv初始化为1，点击初始化为0
+                _mbaSidSeq[1] = (type==="pv" ? 1 : 0);
+            }else {
+                _mbaSidSeq = tools.getCookie("mba_sid").split(".");
+                _mbaSidSeq[1] = (_mbaSidSeq[1]==undefined ? 1: _mbaSidSeq[1])*1 + (type==="pv" ? 1 : 0);
+            }
+            this.setSidCookie();
+        };
+
+        this.setPVSid = function(){
+            var ua =  navigator.userAgent,
+                app_sid_seq_flag = 'pv_sid/',
+                app_sid_seq;
+            if( ua.indexOf("pv/")>-1 ){
+                var endIdx = ua.indexOf(";", ua.indexOf("pv/")>-1 );
+                app_sid_seq = ua.substring(ua.indexOf(app_sid_seq_flag) + app_sid_seq_flag.length, 1)
+            }
+            var pv_sid_seq = ua.substring(ua.indexOf("pv_sid/"))
+        }
+
+        this.setMuidCookie = function(){
+            tools.setCookie("mba_muid" ,_mbaMuidSeq.join(".") ,Options.MCookie.visitorCookieTimeout );//半年过期
+        };
+        this.setSidCookie = function(){
+            tools.setCookie("mba_sid" ,_mbaSidSeq.join(".") ,Options.MCookie.sessionCookieTimeout );//半小时过期
+        };
+
+        //初始化
+        this.initialize = function(){
+            _mbaMuidSeq = [];
+            _mbaSidSeq = [];
+
+            this.setMuid();
+            this.setSid('pv');
+
+            return this;
+        };
+    }
+
     (function(){
 
         if(!tools.isMobile()) return; //PC端不写cookie
 
-        var timestamp=(new Date()).getTime();
-        //设置mba_muid
-        if(!tools.getCookie("mba_muid")){
-            tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
-        }else{
-            var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
-            tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
-        }
-
-        //设置mba_sid
-        if(!tools.getCookie("mba_sid")){
-            tools.setCookie("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
-        }else{
-            tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
-        }
+        new MCookie();
     })();
 
 
