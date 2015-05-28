@@ -132,7 +132,7 @@
             common['reserved3'] = this._reservedCookies();
 
             //abtest
-            common['reserved4'] = Abtest_flag;
+            //common['reserved4'] = Abtest_flag;
         },
         _reservedCookies: function(){
             var tools = MPing.tools.Tools,
@@ -399,8 +399,7 @@
                 var href = tools.attr(target, 'href');
                 var redirect = (function(){
                     return function(){
-                        var end_timestamp = new Date().getTime();
-                        if( href && /http:\/\/.*?/.exec(href) ) window.location.href = href +"m_c_t=onload|" + (end_timestamp-start_timestamp);
+                        if( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) window.location.href = href;
                     }
                 })();
 
@@ -416,27 +415,14 @@
                 if(page_param) click.page_param = page_param;
                 click.updateEventSeries();
 
-                var start_timestamp = new Date().getTime();
-                if(location.href.indexOf(Abtest_url) >-1 ){
-                    if(Abtest_flag == "abtest_0"){ //normal
-                        mping.send(click);
-                    } else if(Abtest_flag == "abtest_1"){// 100ms
-                        mping.send(click, redirect);
-                        if ( href && /http:\/\/.*?/.exec(href) && tools.isMobile() ) {
-                             e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                             var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
-                             setTimeout(function(){
-                                 var end_timestamp = new Date().getTime();
-                                 window.location.href = href +"m_c_t=timeout|" + (end_timestamp-start_timestamp);
-                             }, jump_delay);
-                            }
-                    } else if(Abtest_flag == "abtest_2"){// localstorage
-                        MPing.tools.lstg.setItem('mba_click', mping.getSendUrl(click));
-                    }
-                } else{
-                    mping.send(click);
+                mping.send(click, redirect);
+                if ( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
+                     e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                     var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
+                     setTimeout(function(){
+                         window.location.href = href;
+                     }, jump_delay);
                 }
-
 
             }
         }, false);
@@ -818,7 +804,7 @@
         }
 
         //设置Abtest_flag
-        Abtest_flag = tools.getABTestFlag();
+        //Abtest_flag = tools.getABTestFlag();
 
     })();
 

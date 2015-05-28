@@ -132,7 +132,7 @@
             common['reserved3'] = this._reservedCookies();
 
             //abtest
-            common['reserved4'] = Abtest_flag;
+            //common['reserved4'] = Abtest_flag;
         },
         _reservedCookies: function(){
             var tools = MPing.tools.Tools,
@@ -399,8 +399,7 @@
                 var href = tools.attr(target, 'href');
                 var redirect = (function(){
                     return function(){
-                        var end_timestamp = new Date().getTime();
-                        if( href && /http:\/\/.*?/.exec(href) ) window.location.href = href +"m_c_t=onload|" + (end_timestamp-start_timestamp);
+                        if( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) window.location.href = href;
                     }
                 })();
 
@@ -416,27 +415,14 @@
                 if(page_param) click.page_param = page_param;
                 click.updateEventSeries();
 
-                var start_timestamp = new Date().getTime();
-                if(location.href.indexOf(Abtest_url) >-1 ){
-                    if(Abtest_flag == "abtest_0"){ //normal
-                        mping.send(click);
-                    } else if(Abtest_flag == "abtest_1"){// 100ms
-                        mping.send(click, redirect);
-                        if ( href && /http:\/\/.*?/.exec(href) && tools.isMobile() ) {
-                             e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                             var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
-                             setTimeout(function(){
-                                 var end_timestamp = new Date().getTime();
-                                 window.location.href = href +"m_c_t=timeout|" + (end_timestamp-start_timestamp);
-                             }, jump_delay);
-                            }
-                    } else if(Abtest_flag == "abtest_2"){// localstorage
-                        MPing.tools.lstg.setItem('mba_click', mping.getSendUrl(click));
-                    }
-                } else{
-                    mping.send(click);
+                mping.send(click, redirect);
+                if ( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
+                     e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                     var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
+                     setTimeout(function(){
+                         window.location.href = href;
+                     }, jump_delay);
                 }
-
 
             }
         }, false);
@@ -818,7 +804,7 @@
         }
 
         //设置Abtest_flag
-        Abtest_flag = tools.getABTestFlag();
+        //Abtest_flag = tools.getABTestFlag();
 
     })();
 
@@ -1073,7 +1059,6 @@
         'MHome_Search':1,
         'MHome_SearchDropDownAssociationalWords':1,
         'MHome_SearchDropDownHistoryWords':1,
-        'MHome_SearchButton':1,
         'MHome_AirTicket':1,
         'MHome_Icons':1,
         'MHomeGuessYouLike_Login':1,
@@ -1083,7 +1068,6 @@
         'MHome_FloatEntrance':1,
         'MHome_BacktoTop':1,
         'MVirtual_ProductDetail_Expose':1,
-        'MHome_SearchButton':2,
         'MProductList_Search':1,
         'MSearch_Search':1,
         'MSearch_SearchButton':2,
@@ -1126,7 +1110,6 @@
         'MHandSecKill_Commodity':2,
         'MHandSecKill_Tag':2,
         'MHandSecKill_GotoAPPA':2,
-        'MProductShow_ProductSku':2,
         'Jshop_FocusPic':4,
         'Jshop_ProductID':4,
         'Jshop_CategoryTab':4,
@@ -1304,9 +1287,7 @@
         'LOCOffLineProductDetail_BuyNow':2,
         'LOCOnLineProductDetail_BuyNow':2,
         'MLOCOnLineProductDetail_BuyNow':2,
-        'MLOCOffLineProductDetail_BuyNow':2,
         'MLOCShopList_CallMap':3,
-        'MLOCCheckOut_Submit':4,
         'MFlashbuy_NewArrival':2,
         'MFlashbuy_LastSale':2,
         'MFlashbuy_ActivityForecast':2,
@@ -1315,11 +1296,6 @@
         'MFlashbuy_LastSaleFloor':2,
         'MFlashbuy_ActivityForecastFloor':2,
         'MFlashbuy_ProductPic':3,
-        'MJingDouHome_Activity':2,
-        'MJingDouHome_JingdouBuyLottery':2,
-        'MJingDouHome_Jump':2,
-        'MJingDouHome_Cut':2,
-        'MJingDouHome_ProductPic':2,
         'MPresell_FocusPic':2,
         'MPresell_More':2,
         'MPresell_NewArrivalFloor':2,
@@ -1334,7 +1310,19 @@
         'MTopic_Menus':3,
         'MTopic_Classify':3,
         'MTopic_recommend':3,
-        'MTopic_brand':3
+        'MTopic_brand':3,
+        'Jshop_AD_button':4,
+        'Jshop_AD_TopCarousel ':4,
+        'Jshop_AD_Tab':4,
+        'Jshop_AD_Picture':4,
+        'Jshop_AD_Rolled':4,
+        'Jshop_AD_Close':4,
+        'Jshop_Hot_Tab':4,
+        'Jshop_Hot_ProductID':4,
+        'Jshop_Commended_ProductID ':4,
+        'Jshop_Commended_GotoShop':4,
+        'Jshop_Commended_Pic':4,
+        'Jshop_Commended_Url':4
 		};
 
     /**
