@@ -215,6 +215,21 @@
             };
             image.src = url;
         },
+        //ajax上报
+        sendByRequest: function(request, callback){
+            var xhr =  new window.XMLHttpRequest();
+            xhr.open("POST", "http://stat.m.jd.com/stat/access.jpg", true);
+            xhr.setRequestHeader("Content-Type", "text/plain");
+            xhr.onreadystatechange = function(){
+                if(xhr.readyState == 4){
+                    callback && callback();
+                    xhr = null;
+                }
+            };
+
+            var sendData =  JSON.stringify( this.getReportData( request ) );
+            xhr.send(sendData);
+        },
         //上报完整url
         getSendUrl: function(request){
             var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
@@ -415,7 +430,9 @@
                 if(page_param) click.page_param = page_param;
                 click.updateEventSeries();
 
-                mping.send(click, redirect);
+                //mping.send(click, redirect);
+                mping.sendByRequest(click, redirect);
+
                 if ( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
                      e.preventDefault ? e.preventDefault() : e.returnValue = false;
                      var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
@@ -1322,7 +1339,13 @@
         'Jshop_Commended_ProductID ':4,
         'Jshop_Commended_GotoShop':4,
         'Jshop_Commended_Pic':4,
-        'Jshop_Commended_Url':4
+        'Jshop_Commended_Url':4,
+        'MShopCheckIn_Pic':2,
+        'MShopCheckIn_CheckInGetGift':2,
+        'MShopCheckIn_RecommendShopid':2,
+        'MShopCheckIn_MoreShops':2,
+        'ShopHome_CheckInGetGift':3,
+        'ShopCheckIn_Productid':4
 		};
 
     /**
