@@ -219,7 +219,7 @@
                 }
             };
 
-            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            var sendData = JSON.stringify( this.getReportData( request ) );
             xhr.send(sendData);
         },
         getReportData: function( request ){
@@ -417,8 +417,8 @@
                 if(page_param) click.page_param = page_param;
 
                 click.updateEventSeries();
-                mping.send(click);
-                //mping.sendByRequest(click);
+                //mping.send(click);
+                mping.sendByRequest(click);
 
                 if (href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
                      e.preventDefault ? e.preventDefault() : e.returnValue = false;

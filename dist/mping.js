@@ -36,6 +36,10 @@
         Storage: {
             current: "mba_cur_series",
             cached: "mba_cached_series"
+        },
+        MCookie: {
+            sessionCookieTimeout: 30*60*1000, //半小时
+            visitorCookieTimeout: 1*180*24*60*60*1000 //半年
         }
     };
 
@@ -166,29 +170,23 @@
                 timestamp=(new Date()).getTime();
 
             if(tools.isMobile()){
-                //设置mba_muid
-                if(!tools.getCookie("mba_muid")){
-                    tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
-                }else{
-                    var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
-                    tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
-                }
-
-                //设置mba_sid
-                if(!tools.getCookie("mba_sid")){
-                    tools.setCookie("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
-                }else{
-                    tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
-                }
+                var mcookie = new MCookie();
+                this.options.mba_muid = mcookie.getMuid();
+                this.options.mba_sid = mcookie.getSid();
+                this.options.mba_seq = mcookie.getSeq();
             }
 
-            var pinid = tools.getCookie("pinId"), uid = tools.getCookie("pin"),
-                m_uid = tools.getCookie("mba_muid"), m_sid = tools.getCookie("mba_sid");
+            //内嵌页
+            if(tools.isEmbedded()){
+                this.options.pv_sid = mcookie.getSid();
+                this.options.pv_seq = mcookie.getSeq();
+            }
+
+            var pinid = tools.getCookie("pinId"),
+                uid = tools.getCookie("pin");
 
             this.options.pinid = pinid ? pinid : "";
             this.options.uid = uid ? uid : "";
-            this.options.mba_muid = m_uid ? m_uid : "";
-            this.options.mba_sid = m_sid ? m_sid : "";
         },
 
         //图片上报数据
@@ -221,7 +219,7 @@
                 }
             };
 
-            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            var sendData = JSON.stringify( this.getReportData( request ) );
             xhr.send(sendData);
         },
         getReportData: function( request ){
@@ -251,7 +249,11 @@
         uid: "",
         pinid: "",
         mba_muid: "",
-        mba_sid: ""
+        mba_sid: "",
+        mba_seq: "",
+
+        pv_sid: "", //内嵌页与app共同维护
+        pv_seq: "" //内嵌页与app共同维护
     };
     MPing.prototype.ready = function ( ) {}
 
@@ -396,6 +398,13 @@
                 }
             }
             if( target ){
+                var href = tools.attr(target, 'href');
+                var redirect = (function(){
+                    return function(){
+                        if( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) window.location.href = href;
+                    }
+                })();
+
                 var eventId = target.getAttribute('report-eventid') ? target.getAttribute('report-eventid'): "",
                     page_name = target.getAttribute('report-pagename') ? target.getAttribute('report-pagename'): "",
                     page_param = target.getAttribute('report-pageparam') ? target.getAttribute('report-pageparam'): "";
@@ -410,6 +419,14 @@
                 click.updateEventSeries();
                 //mping.send(click);
                 mping.sendByRequest(click);
+
+                if (href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
+                     e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                     setTimeout(function () {
+                        window.location.href = href;
+                     }, 100);
+                 }
+
             }
         }, false);
     }
@@ -499,13 +516,19 @@
     var EventSeriesLocal = {
         eventSeries: {},
         getSeries: function(callback){
-            var tools = MPing.tools.Tools;
+            var tools = MPing.tools.Tools,
+                mcookie = new MCookie();
             var ret = {
-                m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
-                mba_muid : tools.getCookie("mba_muid"),
-                mba_sid : tools.getCookie("mba_sid"),
+                m_source:  tools.isEmbedded() ? '1' : "0",
+                mba_muid : mcookie.getMuid(),
+                mba_sid : mcookie.getSid(),
                 event_series: this.eventSeries
             };
+            if(tools.isEmbedded()){
+                ret["pv_sid"] = mcookie.getSid();
+                ret["pv_seq"] = mcookie.getSeq();
+                ret['pv_timestamp'] = new Date().getTime();
+            }
             return JSON.stringify(ret);
         },
         androidSeries: function(){
@@ -739,6 +762,10 @@
             return a ? 0 < a.length ? a[0].substr(0, a[0].length - 1) : void 0 : document.domain
         },
 
+        contains:  function(str, sub){
+            return (str["indexOf"](sub) > -1);
+        },
+
         getSearchObj: function(url){
             url || (url = location.search);
             var q = (url + '').replace(/(&amp;|\?)/g, "&").split('&');
@@ -758,25 +785,100 @@
 
     var tools = new Tools();
 
+    var MCookie = function(){
+        //单例
+        if(!MCookie._instance){
+            MCookie._instance = this;
+            this.initialize();
+            return MCookie._instance;
+        }
+
+        var _mbaMuidSeq,
+            _mbaSidSeq;
+
+        //读取mba_muid
+        this.getMuid = function(){
+            this.setMuid();
+            return  _mbaMuidSeq[0];
+        };
+        //读取mba_sid
+        this.getSid = function(){
+            this.setSid();
+            return _mbaSidSeq[0];
+        };
+
+        //读取mba_seq
+        this.getSeq = function(){
+            this.setSid();
+            return _mbaSidSeq[1];
+        };
+
+        this.setMuid = function(){
+            if(!tools.getCookie("mba_muid")){
+                _mbaMuidSeq[0] = tools.getUniq();
+                _mbaMuidSeq[1] = 1;
+            }else {
+                _mbaMuidSeq = tools.getCookie("mba_muid").split(".");
+                if(_mbaMuidSeq[1]==undefined){
+                    _mbaMuidSeq[1]=1;
+                }
+                _mbaMuidSeq[1] = tools.getCookie("mba_sid") ? _mbaMuidSeq[1] : (_mbaMuidSeq[1]*1+1);
+            }
+            this.setMuidCookie();
+        };
+        this.setSid = function( type){
+            //内嵌页使用app带过来的pv_sid,pv_seq
+            if(tools.isEmbedded()){
+                this.setPVSid();
+                return;
+            }
+
+            if(!tools.getCookie("mba_sid")){
+                _mbaSidSeq[0] = new Date().getTime() + "" + parseInt(Math.random()*9999999999999999);
+                //pv初始化为1，点击初始化为0
+                _mbaSidSeq[1] = (type==="pv" ? 1 : 0);
+            }else {
+                _mbaSidSeq = tools.getCookie("mba_sid").split(".");
+                _mbaSidSeq[1] = (_mbaSidSeq[1]==undefined ? 1: _mbaSidSeq[1])*1 + (type==="pv" ? 1 : 0);
+            }
+            this.setSidCookie();
+        };
+
+        this.setPVSid = function(){
+            var ua =  navigator.userAgent,
+                app_sid_seq_flag = 'pv_sid/',
+                app_sid_seq;
+            if( ua.indexOf("pv/")>-1 ){
+                var endIdx = ua.indexOf(";", ua.indexOf("pv/")>-1 );
+                app_sid_seq = ua.substring(ua.indexOf(app_sid_seq_flag) + app_sid_seq_flag.length, 1)
+            }
+            var pv_sid_seq = ua.substring(ua.indexOf("pv_sid/"))
+        }
+
+        this.setMuidCookie = function(){
+            tools.setCookie("mba_muid" ,_mbaMuidSeq.join(".") ,Options.MCookie.visitorCookieTimeout );//半年过期
+        };
+        this.setSidCookie = function(){
+            tools.setCookie("mba_sid" ,_mbaSidSeq.join(".") ,Options.MCookie.sessionCookieTimeout );//半小时过期
+        };
+
+        //初始化
+        this.initialize = function(){
+            _mbaMuidSeq = [];
+            _mbaSidSeq = [];
+
+            this.setMuid();
+            this.setSid('pv');
+
+            return this;
+        };
+    }
+
     (function(){
 
         if(!tools.isMobile()) return; //PC端不写cookie
 
-        var timestamp=(new Date()).getTime();
-        //设置mba_muid
-        if(!tools.getCookie("mba_muid")){
-            tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
-        }else{
-            var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
-            tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
-        }
-
-        //设置mba_sid
-        if(!tools.getCookie("mba_sid")){
-            tools.setCookie("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
-        }else{
-            tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
-        }
+        new MCookie();
     })();
 
 
@@ -806,244 +908,282 @@
 
     var Events = {
         'MHome_FocusPic':1,
-		'Mhome_Classification':1,
-		'Mhome_Cart':1,
-		'MRecharge_Recharge':1,
-		'MHome_Lottery':1,
-		'MHome_MyJD':1,
-		'MHome_HandSeckill':1,
-		'MHome_ActivitiesInFloors':1,
-		'MHome_ThemeHall':1,
-		'MHome_Searchthi':2,
-		'MHome_Search':1,
-		'MHome_SearchDropDownAssociationalWords':1,
-		'MHome_SearchDropDownHistoryWords':1,
-		'MHome_SearchButton':1,
-		'MHome_AirTicket':1,
-		'MHome_Icons':1,
-		'MHomeGuessYouLike_Login':1,
-		'MHomeGuessYouLike_Products':1,
-		'MHomeGuessYouLike_Similarities':1,
-		'MHomeSimilarities_Products':1,
-		'MHome_FloatEntrance':1,
-		'MHome_BacktoTop':1,
-		'MVirtual_ProductDetail_Expose':1,
-		'MHome_SearchButton':2,
-		'MProductList_Search':1,
-		'MSearch_Search':1,
-		'MSearch_SearchButton':2,
-		'MSearch_Searchthi':2,
-		'MSearch_SearchDropDownAssociationalWords':2,
-		'MSearch_HistoryRecords':2,
-		'MSearch_HotWords':2,
-		'MSearch_Productid':3,
-		'MCommonHead_NavigateButton':1,
-		'MCommonHead_home':1,
-		'MCommonHead_CategorySearch':1,
-		'MCommonHead_Cart':1,
-		'MCommonHead_MYJD':1,
-		'MCommonHTail_Account':1,
-		'MCommonHTail_ToTop':1,
-		'MCommonHTail_ClientApp':1,
-		'MDownLoadFloat_OpenNow':1,
-		'MGroupBuy_ChannelIcons':2,
-		'MJingDouHome_Activity':2,
-		'MJingDouHome_JindouExCoupon':2,
-		'MJingDouHome_JingdouBuyLottery':2,
-		'MJingDouHome_Jump':2,
-		'MJingDouHome_Cut':2,
-		'MJingDouHome_ProductPic':2,
-		'MJingDouShare_GetMyJingdou':2,
-		'MJingDouJigsaw_Jigsaw_Expose':2,
-		'MMyJDOrders_Categories':2,
-		'MMyJDFollowed_Commodities':2,
-		'MMyJDFollowed_Shops':2,
-		'MMyJDFollowed_Commodity':2,
-		'MMyJDFollowed_Shop':2,
-		'MMyJDBrowsedHistory_Commodites':2,
-		'MMyJDService_Categories':2,
-		'MMyJDAccountManage_Categories':2,
-		'MMyJD_Ordersnotpay':2,
-		'MMyJD_Ordersnotreceiving':2,
-		'MMyJD_MyMessages':2,
-		'MMyJD_FuntionMenus':2,
-		'MMyJD_GuessYouLike':2,
-		'MHandSecKill_Commodity':2,
-		'MHandSecKill_Tag':2,
-		'MHandSecKill_GotoAPPA':2,
-		'MProductShow_ProductSku':2,
-		'Jshop_FocusPic':4,
-		'Jshop_ProductID':4,
-		'Jshop_CategoryTab':4,
-		'Jshop_ProductID_Category':4,
-		'Jshop_Navigation':4,
-		'Jshop_CountDown':4,
-		'Jshop_Lottery':4,
-		'Jshop_GroupBuy':4,
-		'Jshop_ShopRec':4,
-		'Jshop_PromoRec':4,
-		'Jshop_PromoTurns':4,
-		'Jshop_PreSale':4,
-		'Jshop_Html_Content':4,
-		'Jshop_ImgWord':4,
-		'Jshop_PullDown':4,
-		'Jshop_PullDown_ProductID':4,
-		'Jshop_AddtoCart':4,
-		'MActivity_Productid':4,
-		'MActivity_Share':4,
-		'MActivity_DownloadApp':4,
-		'Mactivity_ReturnHome':4,
-		'MActivity_Button001':4,
-		'MActivity_Button002':4,
-		'MActivity_Button003':4,
-		'MActivity_Button004':4,
-		'MActivity_Button005':4,
-		'MActivity_Button006':4,
-		'MActivity_Button007':4,
-		'ScantoGift_Upload':4,
-		'ScantoGift_UploadSuccess':4,
-		'ScantoGift_UploadFail':4,
-		'3DStreet_Building':4,
-		'3DStreet_BoardURL':4,
-		'3DStreet_JDButton':4,
-		'3DStreet_CategoryURL':4,
-		'3DStreet_Game':4,
-		'3DStreet_Share':4,
-		'BrandStreet_BrandSaleTab':4,
-		'BrandStreet_BrandShowTab':4,
-		'BrandStreet_BrandNewTab':4,
-		'BrandStreetSale_Activityid':4,
-		'BrandStreetSale_BrandPic':4,
-		'BrandStreetSale_SortbySale':4,
-		'BrandStreetSale_SortbyAmount':4,
-		'BrandStreetSale_Productid':4,
-		'BrandStreetShow_FocusPic':4,
-		'BrandStreetShow_Category':4,
-		'BrandStreetShow_Activityid':4,
-		'Shopping1111A_Bargain':4,
-		'Shopping1111A_BrandToday':4,
-		'Shopping1111A_Floor':4,
-		'Shopping1111B_ToUrl':4,
-		'Accessory_CategoryFilter':4,
-		'Accessory_Category':4,
-		'Accessory_BrandFilter':4,
-		'Accessory_Brand':4,
-		'Accessory_Filter':4,
-		'Accessory_Productid':4,
-		'Accessory_ProductMore':4,
-		'AccessoryDetail_SortbyAmount':4,
-		'AccessoryDetail_SortbyEvaluate':4,
-		'AccessoryDetail_SortbyPrice':4,
-		'AccessoryDetail_SortbyNew':4,
-		'MPresell_GetPermission':4,
-		'MPresell_Rule':4,
-		'MPresell_Reserve':4,
-		'MPresell_AddtoCart':4,
-		'MPresell_Productid':4,
-		'MPresell_Confirm':4,
-		'MPresell_Cancel':4,
-		'MCutiPhone_StrollMall':4,
-		'MCutiPhone_DetailRule':4,
-		'MCutiPhone_HelpCutPrice':4,
-		'MCutiPhone_HelpShare':4,
-		'MCutiPhone_JoinTogether':4,
-		'MCutiPhone_InformTa':4,
-		'MCutiPhone_StrollButtom':4,
-		'MCutiPhone_SharetoAll':4,
-		'MTCL_CustomizeTCL':4,
-		'MTCL_MyCustomization':4,
-		'MTCL_ChoosePanel':4,
-		'MTCL_ChooseRemoter':4,
-		'MTCL_ChooseLabel':4,
-		'MTCL_PersonalLabel':4,
-		'MTCL_ThisIsIt':4,
-		'MTCL_OrderDetail':4,
-		'MMCD_APlanReduce5':4,
-		'MMCD_APlanPayOnline':4,
-		'MMCD_BPlanReduce5':4,
-		'MMCD_BPlanPayOnline':4,
-		'MMCDDownLoad_DownloadNow':4,
-		'MMCD_AddToCart':4,
-		'MMCD_GoRegister':4,
-		'MTSWCJingCoupon_GetVouchers':4,
-		'MTSWCFirstLinkVote_Submit':4,
-		'MTSWCFirstLinkVoteResult_Next':4,
-		'MTSWCFirstLinkPersonalCouppon_GetVouchers':4,
-		'MTSWCFirstLinkPersonalCouppon_NextLink':4,
-		'MTSWCFirstLinkPersonalCouppon_Invite':4,
-		'MTSWCSecondLinkVote_Submit':4,
-		'MTSWCStarVoteWin_Next':4,
-		'MTSWCScore_GetVouchers':4,
-		'MTSWCScore_MoreFunInvestment':4,
-		'MobileWare_TreasureBoxEntrance':4,
-		'MMobileWareLocate_Search':4,
-		'MMobileWareLocate_Searchthi':4,
-		'MMobileWareLocate_Locating':4,
-		'MMobileWareLocate_HistoryAddr':4,
-		'MMobileWareLocate_AssociateAddr':4,
-		'MMobileWareCommonHead_GoToCart':4,
-		'MMobileWareCommonHead_ChangeAddr':4,
-		'MMobileWareProductList_BackToTop':4,
-		'MMobileWareProductList_Product':4,
-		'MMobileWareProductDetail_ProductMsg':4,
-		'MMobileWareProductDetail_ProductIntroduction':4,
-		'MMobileWareProductDetail_ProductSpecification':4,
-		'MMobileWareProductDetail_ProductPackage':4,
-		'MMobileWareProductDetail_AddToCart':4,
-		'MMobileWareProductDetail_DeliveryAddr':4,
-		'MMobileWareCart_DeleteProduct':4,
-		'MMobileWareCart_NumIncrease':4,
-		'MMobileWareCart_NumDecrease':4,
-		'MMobileWareCart_SelectAll':4,
-		'MMobileWareCart_CheckOut':4,
-		'MMobileWareCheckout_ChangeAddr':4,
-		'MMobileWareCheckout_MapCoordinate':4,
-		'MMobileWareCheckout_OrderSubmit':4,
-		'MMobileWareCheckout_PaperInvoice':4,
-		'MYuepao_FireCrackersForFree':4,
-		'MYuepao_Share':4,
-		'MYuepao_SetoffAndGetPrize':4,
-		'MYuepao_AskforGift':4,
-		'MYuepao_GotoNewYearShop':4,
-		'MYuepao_NewYearRaffle':4,
-		'MYuepao_Regulation':4,
-		'MYuepao_OnceAgain':4,
-		'MYuepao_IGive':4,
-		'MYuepao_IWantPlay':4,
-		'MYuepao_UpdateNow':4,
-		'MYuepao_HelpFriend':4,
-		'MYuepao_TellOthers':4,
-		'Shopcart_Productid':5,
-		'Shopcart_Stroll':5,
-		'Shopcart_Label':5,
-		'Shopcart_Getresent':5,
-		'Shopcart_Warranty':5,
-		'Shopcart_Pay':5,
-		'Shopcart_AddtoCart':5,
-		'Shopcart_Present':5,
-		'MProductdetail_Photo':5,
-		'MProductdetail_Productinfo':5,
-		'MProductdetail_Saleinfo':5,
-		'MProductdetail_Shopid':5,
-		'MProductdetail_GuessYouLike':5,
-		'MProductdetail_Addtocart':5,
-		'MProductdetail_Easybuy':5,
-		'MProductdetail_GotoCart':5,
-		'MProductdetail_AddtoFollowed':5,
-		'MNeworder_Submit':5,
-		'MNeworder_Function':5,
-		'MNeworder_Address':5,
-		'MNeworder_PayType':5,
-		'MNeworder_ProdictList':5,
-		'MPayFinish_OrderList':5,
-		'MPayFinish_SecKill':5,
-		'MPayFinish_GetJDBean':5,
-		'MPayFinish_AllOrders':5,
-		'MPayFinish_HandSecKill':5,
-		'MPayFinish_HomeMain':5,
-		'MLOCOffLineProductDetail_BuyNow':2,
-		'MLOCShopList_Call':3,
-		'MLOCCheckOut_Submit':4
+        'Mhome_Classification':1,
+        'Mhome_Cart':1,
+        'MRecharge_Recharge':1,
+        'MHome_Lottery':1,
+        'MHome_MyJD':1,
+        'MHome_HandSeckill':1,
+        'MHome_ActivitiesInFloors':1,
+        'MHome_ThemeHall':1,
+        'MHome_Searchthi':2,
+        'MHome_Search':1,
+        'MHome_SearchDropDownAssociationalWords':1,
+        'MHome_SearchDropDownHistoryWords':1,
+        'MHome_AirTicket':1,
+        'MHome_Icons':1,
+        'MHomeGuessYouLike_Login':1,
+        'MHomeGuessYouLike_Products':1,
+        'MHomeGuessYouLike_Similarities':1,
+        'MHomeSimilarities_Products':1,
+        'MHome_FloatEntrance':1,
+        'MHome_BacktoTop':1,
+        'MVirtual_ProductDetail_Expose':1,
+        'MProductList_Search':1,
+        'MSearch_Search':1,
+        'MSearch_SearchButton':2,
+        'MSearch_Searchthi':2,
+        'MSearch_SearchDropDownAssociationalWords':2,
+        'MSearch_HistoryRecords':2,
+        'MSearch_HotWords':2,
+        'MSearch_Productid':3,
+        'MCommonHead_NavigateButton':1,
+        'MCommonHead_home':1,
+        'MCommonHead_CategorySearch':1,
+        'MCommonHead_Cart':1,
+        'MCommonHead_MYJD':1,
+        'MCommonHTail_Account':1,
+        'MCommonHTail_ToTop':1,
+        'MCommonHTail_ClientApp':1,
+        'MDownLoadFloat_OpenNow':1,
+        'MGroupBuy_ChannelIcons':2,
+        'MJingDouHome_Activity':2,
+        'MJingDouHome_JindouExCoupon':2,
+        'MJingDouHome_JingdouBuyLottery':2,
+        'MJingDouHome_Jump':2,
+        'MJingDouHome_Cut':2,
+        'MJingDouHome_ProductPic':2,
+        'MJingDouShare_GetMyJingdou':2,
+        'MJingDouJigsaw_Jigsaw_Expose':2,
+        'MMyJDOrders_Categories':2,
+        'MMyJDFollowed_Commodities':2,
+        'MMyJDFollowed_Shops':2,
+        'MMyJDFollowed_Commodity':2,
+        'MMyJDFollowed_Shop':2,
+        'MMyJDBrowsedHistory_Commodites':2,
+        'MMyJDService_Categories':2,
+        'MMyJDAccountManage_Categories':2,
+        'MMyJD_Ordersnotpay':2,
+        'MMyJD_Ordersnotreceiving':2,
+        'MMyJD_MyMessages':2,
+        'MMyJD_FuntionMenus':2,
+        'MMyJD_GuessYouLike':2,
+        'MHandSecKill_Commodity':2,
+        'MHandSecKill_Tag':2,
+        'MHandSecKill_GotoAPPA':2,
+        'Jshop_FocusPic':4,
+        'Jshop_ProductID':4,
+        'Jshop_CategoryTab':4,
+        'Jshop_ProductID_Category':4,
+        'Jshop_Navigation':4,
+        'Jshop_CountDown':4,
+        'Jshop_Lottery':4,
+        'Jshop_GroupBuy':4,
+        'Jshop_ShopRec':4,
+        'Jshop_PromoRec':4,
+        'Jshop_PromoTurns':4,
+        'Jshop_PreSale':4,
+        'Jshop_Html_Content':4,
+        'Jshop_ImgWord':4,
+        'Jshop_PullDown':4,
+        'Jshop_PullDown_ProductID':4,
+        'Jshop_AddtoCart':4,
+        'MActivity_Productid':4,
+        'MActivity_Share':4,
+        'MActivity_DownloadApp':4,
+        'Mactivity_ReturnHome':4,
+        'MActivity_Button001':4,
+        'MActivity_Button002':4,
+        'MActivity_Button003':4,
+        'MActivity_Button004':4,
+        'MActivity_Button005':4,
+        'MActivity_Button006':4,
+        'MActivity_Button007':4,
+        'ScantoGift_Upload':4,
+        'ScantoGift_UploadSuccess':4,
+        'ScantoGift_UploadFail':4,
+        '3DStreet_Building':4,
+        '3DStreet_BoardURL':4,
+        '3DStreet_JDButton':4,
+        '3DStreet_CategoryURL':4,
+        '3DStreet_Game':4,
+        '3DStreet_Share':4,
+        'BrandStreet_BrandSaleTab':4,
+        'BrandStreet_BrandShowTab':4,
+        'BrandStreet_BrandNewTab':4,
+        'BrandStreetSale_Activityid':4,
+        'BrandStreetSale_BrandPic':4,
+        'BrandStreetSale_SortbySale':4,
+        'BrandStreetSale_SortbyAmount':4,
+        'BrandStreetSale_Productid':4,
+        'BrandStreetShow_FocusPic':4,
+        'BrandStreetShow_Category':4,
+        'BrandStreetShow_Activityid':4,
+        'Shopping1111A_Bargain':4,
+        'Shopping1111A_BrandToday':4,
+        'Shopping1111A_Floor':4,
+        'Shopping1111B_ToUrl':4,
+        'Accessory_CategoryFilter':4,
+        'Accessory_Category':4,
+        'Accessory_BrandFilter':4,
+        'Accessory_Brand':4,
+        'Accessory_Filter':4,
+        'Accessory_Productid':4,
+        'Accessory_ProductMore':4,
+        'AccessoryDetail_SortbyAmount':4,
+        'AccessoryDetail_SortbyEvaluate':4,
+        'AccessoryDetail_SortbyPrice':4,
+        'AccessoryDetail_SortbyNew':4,
+        'MProductShow_ProductSku':4,
+        'MPresell_GetPermission':4,
+        'MPresell_Rule':4,
+        'MPresell_Reserve':4,
+        'MPresell_AddtoCart':4,
+        'MPresell_Productid':4,
+        'MPresell_Confirm':4,
+        'MPresell_Cancel':4,
+        'MCutiPhone_StrollMall':4,
+        'MCutiPhone_DetailRule':4,
+        'MCutiPhone_HelpCutPrice':4,
+        'MCutiPhone_HelpShare':4,
+        'MCutiPhone_JoinTogether':4,
+        'MCutiPhone_InformTa':4,
+        'MCutiPhone_StrollButtom':4,
+        'MCutiPhone_SharetoAll':4,
+        'MTCL_CustomizeTCL':4,
+        'MTCL_MyCustomization':4,
+        'MTCL_ChoosePanel':4,
+        'MTCL_ChooseRemoter':4,
+        'MTCL_ChooseLabel':4,
+        'MTCL_PersonalLabel':4,
+        'MTCL_ThisIsIt':4,
+        'MTCL_OrderDetail':4,
+        'MMCD_APlanReduce5':4,
+        'MMCD_APlanPayOnline':4,
+        'MMCD_BPlanReduce5':4,
+        'MMCD_BPlanPayOnline':4,
+        'MMCDDownLoad_DownloadNow':4,
+        'MMCD_AddToCart':4,
+        'MMCD_GoRegister':4,
+        'MTSWCJingCoupon_GetVouchers':4,
+        'MTSWCFirstLinkVote_Submit':4,
+        'MTSWCFirstLinkVoteResult_Next':4,
+        'MTSWCFirstLinkPersonalCouppon_GetVouchers':4,
+        'MTSWCFirstLinkPersonalCouppon_NextLink':4,
+        'MTSWCFirstLinkPersonalCouppon_Invite':4,
+        'MTSWCSecondLinkVote_Submit':4,
+        'MTSWCStarVoteWin_Next':4,
+        'MTSWCScore_GetVouchers':4,
+        'MTSWCScore_MoreFunInvestment':4,
+        'MobileWare_TreasureBoxEntrance':4,
+        'MMobileWareLocate_Search':4,
+        'MMobileWareLocate_Searchthi':4,
+        'MMobileWareLocate_Locating':4,
+        'MMobileWareLocate_HistoryAddr':4,
+        'MMobileWareLocate_AssociateAddr':4,
+        'MMobileWareCommonHead_GoToCart':4,
+        'MMobileWareCommonHead_ChangeAddr':4,
+        'MMobileWareProductList_BackToTop':4,
+        'MMobileWareProductList_Product':4,
+        'MMobileWareProductDetail_ProductMsg':4,
+        'MMobileWareProductDetail_ProductIntroduction':4,
+        'MMobileWareProductDetail_ProductSpecification':4,
+        'MMobileWareProductDetail_ProductPackage':4,
+        'MMobileWareProductDetail_AddToCart':4,
+        'MMobileWareProductDetail_DeliveryAddr':4,
+        'MMobileWareCart_DeleteProduct':4,
+        'MMobileWareCart_NumIncrease':4,
+        'MMobileWareCart_NumDecrease':4,
+        'MMobileWareCart_SelectAll':4,
+        'MMobileWareCart_CheckOut':4,
+        'MMobileWareCheckout_ChangeAddr':4,
+        'MMobileWareCheckout_MapCoordinate':4,
+        'MMobileWareCheckout_OrderSubmit':4,
+        'MMobileWareCheckout_PaperInvoice':4,
+        'MYuepao_FireCrackersForFree':4,
+        'MYuepao_Share':4,
+        'MYuepao_SetoffAndGetPrize':4,
+        'MYuepao_AskforGift':4,
+        'MYuepao_GotoNewYearShop':4,
+        'MYuepao_NewYearRaffle':4,
+        'MYuepao_Regulation':4,
+        'MYuepao_OnceAgain':4,
+        'MYuepao_IGive':4,
+        'MYuepao_IWantPlay':4,
+        'MYuepao_UpdateNow':4,
+        'MYuepao_HelpFriend':4,
+        'MYuepao_TellOthers':4,
+        'Shopcart_Productid':5,
+        'Shopcart_Stroll':5,
+        'Shopcart_Label':5,
+        'Shopcart_Getresent':5,
+        'Shopcart_Warranty':5,
+        'Shopcart_Pay':5,
+        'Shopcart_AddtoCart':5,
+        'Shopcart_Present':5,
+        'MProductdetail_Photo':5,
+        'MProductdetail_Productinfo':5,
+        'MProductdetail_Saleinfo':5,
+        'MProductdetail_Shopid':5,
+        'MProductdetail_GuessYouLike':5,
+        'MProductdetail_Addtocart':5,
+        'MProductdetail_Easybuy':5,
+        'MProductdetail_GotoCart':5,
+        'MProductdetail_AddtoFollowed':5,
+        'MNeworder_Submit':5,
+        'MNeworder_Function':5,
+        'MNeworder_Address':5,
+        'MNeworder_PayType':5,
+        'MNeworder_ProdictList':5,
+        'MPayFinish_OrderList':5,
+        'MPayFinish_SecKill':5,
+        'MPayFinish_GetJDBean':5,
+        'MPayFinish_AllOrders':5,
+        'MPayFinish_HandSecKill':5,
+        'MHome_OrderSubmit':5,
+        'MPayFinish_HomeMain':5,
+        'MLOCOffLineProductDetail_BuyNow':2,
+        'MLOCShopList_Call':3,
+        'MLOCCheckOut_Submit':4,
+        'LOCOffLineProductDetail_BuyNow':2,
+        'LOCOnLineProductDetail_BuyNow':2,
+        'MLOCOnLineProductDetail_BuyNow':2,
+        'MLOCShopList_CallMap':3,
+        'MFlashbuy_NewArrival':2,
+        'MFlashbuy_LastSale':2,
+        'MFlashbuy_ActivityForecast':2,
+        'Mflashbuy_FocusPic':2,
+        'MFlashbuy_NewArrivalFloor':2,
+        'MFlashbuy_LastSaleFloor':2,
+        'MFlashbuy_ActivityForecastFloor':2,
+        'MFlashbuy_ProductPic':3,
+        'MPresell_FocusPic':2,
+        'MPresell_More':2,
+        'MPresell_NewArrivalFloor':2,
+        'MPresell_GetFreshFloor':2,
+        'MPresell_SmartLifeFloor':2,
+        'MPresell_BranchVenues':2,
+        'MPresell_ProductList':3,
+        'MTopic_FocusPic':3,
+        'MTopic_SecKill':3,
+        'MTopic_Floors':3,
+        'MTopic_Products':3,
+        'MTopic_Menus':3,
+        'MTopic_Classify':3,
+        'MTopic_recommend':3,
+        'MTopic_brand':3,
+        'Jshop_AD_button':4,
+        'Jshop_AD_TopCarousel ':4,
+        'Jshop_AD_Tab':4,
+        'Jshop_AD_Picture':4,
+        'Jshop_AD_Rolled':4,
+        'Jshop_AD_Close':4,
+        'Jshop_Hot_Tab':4,
+        'Jshop_Hot_ProductID':4,
+        'Jshop_Commended_ProductID ':4,
+        'Jshop_Commended_GotoShop':4,
+        'Jshop_Commended_Pic':4,
+        'Jshop_Commended_Url':4
 		};
 
     /**
