@@ -36,10 +36,6 @@
         Storage: {
             current: "mba_cur_series",
             cached: "mba_cached_series"
-        },
-        MCookie: {
-            sessionCookieTimeout: 30*60*1000, //半小时
-            visitorCookieTimeout: 1*180*24*60*60*1000 //半年
         }
     };
 
@@ -66,6 +62,10 @@
             channel:""        //渠道信息
         }
     };
+
+    //abtest flag, reserved4
+    var Abtest_flag, //abtest_0:normal, abtest_1: 100ms, abtest_2: localstorage
+        Abtest_url = 'http://sale.jd.com/m/act/aJvdfB2SmC.html';
 
     /**
      * MPing核心库，用于开辟一个程序入口
@@ -131,6 +131,8 @@
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
 
+            //abtest
+            //common['reserved4'] = Abtest_flag;
         },
         _reservedCookies: function(){
             var tools = MPing.tools.Tools,
@@ -170,27 +172,33 @@
                 timestamp=(new Date()).getTime();
 
             if(tools.isMobile()){
-                var mcookie = new MCookie();
-                this.options.mba_muid = mcookie.getMuid();
-                this.options.mba_sid = mcookie.getSid();
-                this.options.mba_seq = mcookie.getSeq();
+                //设置mba_muid
+                if(!tools.getCookie("mba_muid")){
+                    tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
+                }else{
+                    var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
+                    tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
+                }
+
+                //设置mba_sid
+                if(!tools.getCookie("mba_sid")){
+                    tools.setCookie("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
+                }else{
+                    tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
+                }
             }
 
-            //内嵌页
-            if(tools.isEmbedded()){
-                this.options.pv_sid = mcookie.getSid();
-                this.options.pv_seq = mcookie.getSeq();
-            }
-
-            var pinid = tools.getCookie("pinId"),
-                uid = tools.getCookie("pin");
+            var pinid = tools.getCookie("pinId"), uid = tools.getCookie("pin"),
+                m_uid = tools.getCookie("mba_muid"), m_sid = tools.getCookie("mba_sid");
 
             this.options.pinid = pinid ? pinid : "";
             this.options.uid = uid ? uid : "";
+            this.options.mba_muid = m_uid ? m_uid : "";
+            this.options.mba_sid = m_sid ? m_sid : "";
         },
 
-        //图片上报数据
-        send: function( request ,callback){
+        //上报数据
+        send: function( request, callback ){
 
             if(this.isSpider()) return; //爬虫不上报
 
@@ -200,10 +208,10 @@
             param.push('data=' + sendData);
             var url = interfaceUrl + param.join('&');
             var image = new Image(1,1);
-            image.onload = function(){
-                image.onload = null;
+            image.onload = image.onerror = image.onabort = function() {
+                image.onload = image.onerror = image.onabort = null;
                 image = null;
-                callback && callback();
+                callback && callback(url)
             };
             image.src = url;
         },
@@ -219,8 +227,17 @@
                 }
             };
 
-            var sendData = JSON.stringify( this.getReportData( request ) );
+            var sendData =  JSON.stringify( this.getReportData( request ) );
             xhr.send(sendData);
+        },
+        //上报完整url
+        getSendUrl: function(request){
+            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
+            var param = [];
+            param.push('data=' + sendData);
+            var url = interfaceUrl + param.join('&');
+            return url;
         },
         getReportData: function( request ){
             var tools = MPing.tools.Tools,
@@ -249,11 +266,7 @@
         uid: "",
         pinid: "",
         mba_muid: "",
-        mba_sid: "",
-        mba_seq: "",
-
-        pv_sid: "", //内嵌页与app共同维护
-        pv_seq: "" //内嵌页与app共同维护
+        mba_sid: ""
     };
     MPing.prototype.ready = function ( ) {}
 
@@ -415,17 +428,18 @@
                 //click.event_func = target.getAttribute('report-eventfunc') ? target.getAttribute('report-eventfunc'): "";
                 if(page_name) click.page_name = page_name;
                 if(page_param) click.page_param = page_param;
-
                 click.updateEventSeries();
-                //mping.send(click);
-                mping.sendByRequest(click);
 
-                if (href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
+                //mping.send(click, redirect);
+                mping.sendByRequest(click, redirect);
+
+                if ( href && /http:\/\/.*?/.exec(href) && tools.attr(target, 'target') !== '_blank' ) {
                      e.preventDefault ? e.preventDefault() : e.returnValue = false;
-                     setTimeout(function () {
-                        window.location.href = href;
-                     }, 100);
-                 }
+                     var jump_delay = parseInt(tools.attr(target, 'report-delay')) || 100;
+                     setTimeout(function(){
+                         window.location.href = href;
+                     }, jump_delay);
+                }
 
             }
         }, false);
@@ -516,19 +530,13 @@
     var EventSeriesLocal = {
         eventSeries: {},
         getSeries: function(callback){
-            var tools = MPing.tools.Tools,
-                mcookie = new MCookie();
+            var tools = MPing.tools.Tools;
             var ret = {
-                m_source:  tools.isEmbedded() ? '1' : "0",
-                mba_muid : mcookie.getMuid(),
-                mba_sid : mcookie.getSid(),
+                m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
+                mba_muid : tools.getCookie("mba_muid"),
+                mba_sid : tools.getCookie("mba_sid"),
                 event_series: this.eventSeries
             };
-            if(tools.isEmbedded()){
-                ret["pv_sid"] = mcookie.getSid();
-                ret["pv_seq"] = mcookie.getSeq();
-                ret['pv_timestamp'] = new Date().getTime();
-            }
             return JSON.stringify(ret);
         },
         androidSeries: function(){
@@ -762,10 +770,6 @@
             return a ? 0 < a.length ? a[0].substr(0, a[0].length - 1) : void 0 : document.domain
         },
 
-        contains:  function(str, sub){
-            return (str["indexOf"](sub) > -1);
-        },
-
         getSearchObj: function(url){
             url || (url = location.search);
             var q = (url + '').replace(/(&amp;|\?)/g, "&").split('&');
@@ -780,105 +784,45 @@
         getParameter: function(url, name) {
             var f = url.match(RegExp("(^|&|\\?|#)(" + name + ")=([^&#]*)(&|$|#)", ""));
             return f ? f[3] : null
+        },
+
+        getABTestFlag: function(){
+            var abtest_flag,
+                cur_href = location.href.indexOf("?")>-1 ? location.href.substr(0,location.href.indexOf("?")) : location.href;
+            if(Abtest_url == cur_href ){
+                abtest_flag = "abtest_" + parseInt(Math.random()*1000) %3;
+            } else {
+                abtest_flag = this.getParameter(location.href, "m_c_t");
+            }
+            return abtest_flag;
         }
     };
 
     var tools = new Tools();
 
-    var MCookie = function(){
-        //单例
-        if(!MCookie._instance){
-            MCookie._instance = this;
-            this.initialize();
-            return MCookie._instance;
-        }
-
-        var _mbaMuidSeq,
-            _mbaSidSeq;
-
-        //读取mba_muid
-        this.getMuid = function(){
-            this.setMuid();
-            return  _mbaMuidSeq[0];
-        };
-        //读取mba_sid
-        this.getSid = function(){
-            this.setSid();
-            return _mbaSidSeq[0];
-        };
-
-        //读取mba_seq
-        this.getSeq = function(){
-            this.setSid();
-            return _mbaSidSeq[1];
-        };
-
-        this.setMuid = function(){
-            if(!tools.getCookie("mba_muid")){
-                _mbaMuidSeq[0] = tools.getUniq();
-                _mbaMuidSeq[1] = 1;
-            }else {
-                _mbaMuidSeq = tools.getCookie("mba_muid").split(".");
-                if(_mbaMuidSeq[1]==undefined){
-                    _mbaMuidSeq[1]=1;
-                }
-                _mbaMuidSeq[1] = tools.getCookie("mba_sid") ? _mbaMuidSeq[1] : (_mbaMuidSeq[1]*1+1);
-            }
-            this.setMuidCookie();
-        };
-        this.setSid = function( type){
-            //内嵌页使用app带过来的pv_sid,pv_seq
-            if(tools.isEmbedded()){
-                this.setPVSid();
-                return;
-            }
-
-            if(!tools.getCookie("mba_sid")){
-                _mbaSidSeq[0] = new Date().getTime() + "" + parseInt(Math.random()*9999999999999999);
-                //pv初始化为1，点击初始化为0
-                _mbaSidSeq[1] = (type==="pv" ? 1 : 0);
-            }else {
-                _mbaSidSeq = tools.getCookie("mba_sid").split(".");
-                _mbaSidSeq[1] = (_mbaSidSeq[1]==undefined ? 1: _mbaSidSeq[1])*1 + (type==="pv" ? 1 : 0);
-            }
-            this.setSidCookie();
-        };
-
-        this.setPVSid = function(){
-            var ua =  navigator.userAgent,
-                app_sid_seq_flag = 'pv_sid/',
-                app_sid_seq;
-            if( ua.indexOf("pv/")>-1 ){
-                var endIdx = ua.indexOf(";", ua.indexOf("pv/")>-1 );
-                app_sid_seq = ua.substring(ua.indexOf(app_sid_seq_flag) + app_sid_seq_flag.length, 1)
-            }
-            var pv_sid_seq = ua.substring(ua.indexOf("pv_sid/"))
-        }
-
-        this.setMuidCookie = function(){
-            tools.setCookie("mba_muid" ,_mbaMuidSeq.join(".") ,Options.MCookie.visitorCookieTimeout );//半年过期
-        };
-        this.setSidCookie = function(){
-            tools.setCookie("mba_sid" ,_mbaSidSeq.join(".") ,Options.MCookie.sessionCookieTimeout );//半小时过期
-        };
-
-        //初始化
-        this.initialize = function(){
-            _mbaMuidSeq = [];
-            _mbaSidSeq = [];
-
-            this.setMuid();
-            this.setSid('pv');
-
-            return this;
-        };
-    }
-
     (function(){
 
         if(!tools.isMobile()) return; //PC端不写cookie
 
-        new MCookie();
+        var timestamp=(new Date()).getTime();
+        //设置mba_muid
+        if(!tools.getCookie("mba_muid")){
+            tools.setCookie("mba_muid" ,tools.getUniq() ,1*180*24*60*60*1000 );//半年过期
+        }else{
+            var is_old_muid = !!/-.{4}-/.exec( tools.getCookie("mba_muid"));
+            tools.setCookie("mba_muid" ,is_old_muid ? tools.getUniq(): tools.getCookie("mba_muid") ,1*180*24*60*60*1000 );//半年过期
+        }
+
+        //设置mba_sid
+        if(!tools.getCookie("mba_sid")){
+            tools.setCookie("mba_sid" ,timestamp+"" + parseInt(Math.random()*9999999999999999) ,30*60*1000 );//半小时过期
+        }else{
+            tools.setCookie("mba_sid" ,tools.getCookie("mba_sid") ,30*60*1000 );//半小时过期
+        }
+
+        //设置Abtest_flag
+        //Abtest_flag = tools.getABTestFlag();
+
     })();
 
 
@@ -892,13 +836,225 @@
     //document.domain = tools.getTopDomain();
     window.MPing = MPing;
 
-
     /*AMD support*/
     /*if (typeof define === 'function' && define.amd) {
         define('MPing', [], function() {
             return MPing;
         });
     }*/
+
+}(window));;;(function(window){
+
+    (function(w, undefined) {
+        if (w.localStorage !== undefined && !(window.attachEvent && navigator.userAgent.indexOf('Opera') === -1)) {
+            w.mbaShareCore = w.localStorage;
+            return;
+        }
+
+        function UserData(file) {
+            this.dom = document.getElementById("share_core");
+            this.file = file || "user_data_default";
+        };
+
+        UserData.prototype = {
+            setItem: function(k, v) {
+                this.dom.setAttribute(k, v);
+                this.dom.save(this.file);
+            },
+
+            getItem: function(k) {
+                try { // 处理文件可能被QQ管家之类的东东删掉的情况
+                    this.dom.load(this.file);
+                }
+                catch(e) {
+                    return null;
+                }
+                return this.dom.getAttribute(k);
+            },
+
+            removeItem: function(k) {
+                this.dom.removeAttribute(k);
+                this.dom.save(this.file);
+            },
+
+            clear: function() {
+                try { // 处理文件可能被QQ管家之类的东东删掉的情况
+                    this.dom.load(this.file);
+                    now = new Date(new Date().getTime() - 1);
+                    this.dom.expires = now.toUTCString();
+                    this.dom.save(this.file);
+                } catch(e) {}
+            }
+        };
+
+        w.mbaShareCore = new UserData("local_storage");
+    })(window);
+
+    var _encode = (function() {
+        var escapeMap = {
+            "\b": "\\b",
+            "\t": "\\t",
+            "\n": "\\n",
+            "\f": "\\f",
+            "\r": "\\r",
+            '"': '\\"',
+            "\\": "\\\\"
+        };
+        function encodeString(source) {
+            if (/["\\\x00-\x1f]/.test(source)) {
+                source = source.replace(/["\\\x00-\x1f]/g,
+                    function(match) {
+                        var c = escapeMap[match];
+                        if (c) {
+                            return c
+                        }
+                        c = match.charCodeAt();
+                        return "\\u00" + Math.floor(c / 16).toString(16) + (c % 16).toString(16)
+                    })
+            }
+            return '"' + source + '"'
+        }
+        function encodeArray(source) {
+            var result = ["["],
+                l = source.length,
+                preComma,
+                i,
+                item;
+            for (i = 0; i < l; i++) {
+                item = source[i];
+                switch (typeof item) {
+                    case "undefined":
+                    case "function":
+                    case "unknown":
+                        break;
+                    default:
+                        if (preComma) {
+                            result.push(",")
+                        }
+                        result.push(_encode(item));
+                        preComma = 1
+                }
+            }
+            result.push("]");
+            return result.join("")
+        }
+        function pad(source) {
+            return source < 10 ? "0" + source: source
+        }
+        function encodeDate(source) {
+            return '"' + source.getFullYear() + "-" + pad(source.getMonth() + 1) + "-" + pad(source.getDate()) + "T" + pad(source.getHours()) + ":" + pad(source.getMinutes()) + ":" + pad(source.getSeconds()) + '"'
+        }
+        return function(value) {
+            switch (typeof value) {
+                case "undefined":
+                    return "undefined";
+                case "number":
+                    return isFinite(value) ? String(value) : "null";
+                case "string":
+                    return encodeString(value);
+                case "boolean":
+                    return String(value);
+                default:
+                    if (value === null) {
+                        return "null"
+                    } else {
+                        if (value instanceof Array) {
+                            return encodeArray(value)
+                        } else {
+                            if (value instanceof Date) {
+                                return encodeDate(value)
+                            } else {
+                                var result = ["{"],
+                                    encode = _encode,
+                                    preComma,
+                                    item;
+                                for (key in value) {
+                                    if (value.hasOwnProperty(key)) {
+                                        item = value[key];
+                                        switch (typeof item) {
+                                            case "undefined":
+                                            case "unknown":
+                                            case "function":
+                                                break;
+                                            default:
+                                                if (preComma) {
+                                                    result.push(",")
+                                                }
+                                                preComma = 1;
+                                                result.push(encode(key) + ":" + encode(item))
+                                        }
+                                    }
+                                }
+                                result.push("}");
+                                return result.join("")
+                            }
+                        }
+                    }
+            }
+        }
+    })();
+
+    var _decode = function(string, secure) {
+        if (typeof(string) != "string" || !string.length) {
+            return null
+        }
+        if (secure && !(/^[,:{}\[\]0-9.\-+Eaeflnr-u \n\r\t]*$/).test(string.replace(/\\./g, "@").replace(/"[^"\\\n\r]*"/g, ""))) {
+            return null
+        }
+        try {
+            return eval("(" + string + ")")
+        } catch(e) {
+            return {}
+        }
+    }
+
+    var storageCore = {
+        setItem : function(key, value, expires) {
+            var data = {
+                'data' : value,
+                'expires' : expires !== undefined ? ( new Date().getTime() + ( parseInt(expires, 10) || 0 ) ) : 0
+            };
+            mbaShareCore.setItem(key, _encode(data));
+        },
+
+        getItem : function(key) {
+            var ret = null,
+                val = mbaShareCore.getItem(key);
+            if (val) {
+                val = _decode( val );
+                if ( val.expires ===0 ||  new Date().getTime() < val.expires ) {
+                    ret = val.data;
+                }
+                else {
+                    this.removeItem(key);
+                }
+            }
+
+            return ret;
+        },
+
+        removeItem : function(key) {
+            mbaShareCore.removeItem(key);
+        },
+
+        clear : function() {
+            mbaShareCore.clear();
+        }
+    };
+
+    MPing.tools || (MPing.tools = {});
+    MPing.tools.lstg =  storageCore;
+
+    try{
+        //上报localstg里面的click并上报
+        var mba_click = storageCore.getItem("mba_click");
+        if(mba_click){
+            var image = new Image(1,1);
+            image.src = mba_click;
+            storageCore.removeItem("mba_click");
+        }
+    } catch(e){}
+
 
 }(window));;/**
  * @fileoverview 这个文件是所有事件id与事件等级对应表
@@ -1183,7 +1339,13 @@
         'Jshop_Commended_ProductID ':4,
         'Jshop_Commended_GotoShop':4,
         'Jshop_Commended_Pic':4,
-        'Jshop_Commended_Url':4
+        'Jshop_Commended_Url':4,
+        'MShopCheckIn_Pic':2,
+        'MShopCheckIn_CheckInGetGift':2,
+        'MShopCheckIn_RecommendShopid':2,
+        'MShopCheckIn_MoreShops':2,
+        'ShopHome_CheckInGetGift':3,
+        'ShopCheckIn_Productid':4
 		};
 
     /**

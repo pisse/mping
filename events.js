@@ -281,7 +281,13 @@
         'Jshop_Commended_ProductID ':4,
         'Jshop_Commended_GotoShop':4,
         'Jshop_Commended_Pic':4,
-        'Jshop_Commended_Url':4
+        'Jshop_Commended_Url':4,
+        'MShopCheckIn_Pic':2,
+        'MShopCheckIn_CheckInGetGift':2,
+        'MShopCheckIn_RecommendShopid':2,
+        'MShopCheckIn_MoreShops':2,
+        'ShopHome_CheckInGetGift':3,
+        'ShopCheckIn_Productid':4
 		};
 
     /**
