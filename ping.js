@@ -178,6 +178,7 @@
 
             //内嵌页
             if(tools.isEmbedded()){
+                var mcookie = new MCookie();
                 this.options.pv_sid = mcookie.getSid();
                 this.options.pv_seq = mcookie.getSeq();
             }
@@ -791,6 +792,8 @@
             MCookie._instance = this;
             this.initialize();
             return MCookie._instance;
+        }else{
+            return MCookie._instance;
         }
 
         var _mbaMuidSeq,
@@ -806,7 +809,6 @@
             this.setSid();
             return _mbaSidSeq[0];
         };
-
         //读取mba_seq
         this.getSeq = function(){
             this.setSid();
@@ -816,20 +818,15 @@
         this.setMuid = function(){
             if(!tools.getCookie("mba_muid")){
                 _mbaMuidSeq[0] = tools.getUniq();
-                _mbaMuidSeq[1] = 1;
             }else {
-                _mbaMuidSeq = tools.getCookie("mba_muid").split(".");
-                if(_mbaMuidSeq[1]==undefined){
-                    _mbaMuidSeq[1]=1;
-                }
-                _mbaMuidSeq[1] = tools.getCookie("mba_sid") ? _mbaMuidSeq[1] : (_mbaMuidSeq[1]*1+1);
+                _mbaMuidSeq[0] = tools.getCookie("mba_muid").split(".")[0];
             }
             this.setMuidCookie();
         };
         this.setSid = function( type){
             //内嵌页使用app带过来的pv_sid,pv_seq
             if(tools.isEmbedded()){
-                this.setPVSid();
+                this.setPVSid(type);
                 return;
             }
 
@@ -844,15 +841,45 @@
             this.setSidCookie();
         };
 
-        this.setPVSid = function(){
+        this.setPVSid = function(type){
             var ua =  navigator.userAgent,
-                app_sid_seq_flag = 'pv_sid/',
-                app_sid_seq;
-            if( ua.indexOf("pv/")>-1 ){
-                var endIdx = ua.indexOf(";", ua.indexOf("pv/")>-1 );
-                app_sid_seq = ua.substring(ua.indexOf(app_sid_seq_flag) + app_sid_seq_flag.length, 1)
+                app_sid_seq_index = ua.indexOf('pv/'),
+                app_sid_seq, //来自app
+                cookie_sid_seq,//来自cookie,
+                pv_sid;
+            if( app_sid_seq_index > -1 ){
+                var endIdx = ua.indexOf(";", app_sid_seq_index );
+                if(endIdx < 0){
+                    endIdx = ua.length;
+                }
+                app_sid_seq = ua.substring(app_sid_seq_index + 3, endIdx);
+            }else{
+                app_sid_seq = '1.0';
             }
-            var pv_sid_seq = ua.substring(ua.indexOf("pv_sid/"))
+
+
+            if(tools.getCookie("mba_sid")){
+                cookie_sid_seq = tools.getCookie("mba_sid");
+            } else{
+                var m_muid = tools.getCookie("mba_muid") ,m_muid_arr =  m_muid.split(".");//？关闭app，m_muid不清除？
+                if(m_muid_arr.length == 3){
+                    var pre_sid = m_muid[1], pre_timestamp = parseInt(m_muid[2]);
+                    if(new Date().getTime() - pre_timestamp > Options.MCookie.sessionCookieTimeout ){
+                        cookie_sid_seq = [pre_sid, 0].join(".");
+                    }
+                } else{
+                    cookie_sid_seq = '1.0';
+                }
+            }
+            pv_sid = app_sid_seq> cookie_sid_seq ? app_sid_seq : cookie_sid_seq;
+            _mbaSidSeq[0] = pv_sid.split(".")[0];
+            _mbaSidSeq[1] = (pv_sid.split(".")[1] ? pv_sid.split(".")[1]: 1)*1  + (type==="pv" ? 1 : 0) ;
+
+            _mbaMuidSeq[1] = _mbaSidSeq[0];
+            _mbaMuidSeq[2] = new Date().getTime();
+
+            this.setSidCookie();
+            this.setMuidCookie();
         }
 
         this.setMuidCookie = function(){
