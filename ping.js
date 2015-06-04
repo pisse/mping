@@ -535,7 +535,8 @@
                 m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
                 mba_muid : tools.getCookie("mba_muid"),
                 mba_sid : tools.getCookie("mba_sid"),
-                event_series: this.eventSeries
+                event_series: this.eventSeries,
+                jda:  tools.getCookie("__jda")
             };
             return JSON.stringify(ret);
         },
