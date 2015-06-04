@@ -861,10 +861,12 @@
             if(tools.getCookie("mba_sid")){
                 cookie_sid_seq = tools.getCookie("mba_sid");
             } else{
-                var m_muid = tools.getCookie("mba_muid") ,m_muid_arr =  m_muid.split(".");//？关闭app，m_muid不清除？
+                var m_muid = tools.getCookie("mba_muid") ,m_muid_arr =  m_muid.split(".");//从mba_muid cookie中取得上一次的sid
                 if(m_muid_arr.length == 3){
                     var pre_sid = m_muid[1], pre_timestamp = parseInt(m_muid[2]);
-                    if(new Date().getTime() - pre_timestamp > Options.MCookie.sessionCookieTimeout ){
+                    if(new Date().getTime() - pre_timestamp > Options.MCookie.sessionCookieTimeout ){//超过半小时
+                        cookie_sid_seq = [pre_sid*1+1, 0].join(".");
+                    }else{
                         cookie_sid_seq = [pre_sid, 0].join(".");
                     }
                 } else{
