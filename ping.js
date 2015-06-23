@@ -523,7 +523,8 @@
                 m_source:  tools.isEmbedded() ? '1' : "0",
                 mba_muid : mcookie.getMuid(),
                 mba_sid : mcookie.getSid(),
-                event_series: this.eventSeries
+                event_series: this.eventSeries,
+                jda:  tools.getCookie("__jda")
             };
             if(tools.isEmbedded()){
                 ret["pv_sid"] = mcookie.getSid();
@@ -790,8 +791,6 @@
         //单例
         if(!MCookie._instance){
             MCookie._instance = this;
-            this.initialize();
-            return MCookie._instance;
         }else{
             return MCookie._instance;
         }
@@ -901,7 +900,10 @@
 
             return this;
         };
-    }
+
+        this.initialize();
+        return MCookie._instance;
+    };
 
     (function(){
 
