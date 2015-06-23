@@ -281,8 +281,21 @@
         'Jshop_Commended_ProductID ':4,
         'Jshop_Commended_GotoShop':4,
         'Jshop_Commended_Pic':4,
-        'Jshop_Commended_Url':4
-		};
+        'Jshop_Commended_Url':4,
+        'MShopCheckIn_Pic':2,
+        'MShopCheckIn_CheckInGetGift':2,
+        'MShopCheckIn_RecommendShopid':2,
+        'MShopCheckIn_MoreShops':2,
+        'ShopHome_CheckInGetGift':3,
+        'ShopCheckIn_Productid':4,
+        'MJingDouHome_CouponCenter':1,
+        'MWidget_Sign':1,
+        'Widget_Operate':1,
+        'Widget_Commodity':1,
+        'Widget_More':1,
+        'MJingDouHome_Checkin':2,
+        'MSeckill_SubmitAndAccount':5
+    };
 
     /**
      * @namespace 该命名空间下包含事件
