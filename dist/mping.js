@@ -535,7 +535,8 @@
                 m_source:  navigator.userAgent.indexOf('jdapp') > -1 ? '1' : "0",
                 mba_muid : tools.getCookie("mba_muid"),
                 mba_sid : tools.getCookie("mba_sid"),
-                event_series: this.eventSeries
+                event_series: this.eventSeries,
+                jda:  tools.getCookie("__jda")
             };
             return JSON.stringify(ret);
         },
@@ -1345,7 +1346,14 @@
         'MShopCheckIn_RecommendShopid':2,
         'MShopCheckIn_MoreShops':2,
         'ShopHome_CheckInGetGift':3,
-        'ShopCheckIn_Productid':4
+        'ShopCheckIn_Productid':4,
+        'MJingDouHome_CouponCenter':1,
+        'MWidget_Sign':1,
+        'Widget_Operate':1,
+        'Widget_Commodity':1,
+        'Widget_More':1,
+        'MJingDouHome_Checkin':2,
+        'MSeckill_SubmitAndAccount':5
 		};
 
     /**
