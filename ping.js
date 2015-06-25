@@ -169,18 +169,18 @@
             var tools = MPing.tools.Tools,
                 timestamp=(new Date()).getTime();
 
-            if(tools.isMobile()){
-                var mcookie = new MCookie();
+            if(tools.isEmbedded() || tools.isMobile() ){
+                var mcookie = new MCookie(),
+                    sidseq = mcookie.getSidSeq();
                 this.options.mba_muid = mcookie.getMuid();
-                this.options.mba_sid = mcookie.getSid();
-                this.options.mba_seq = mcookie.getSeq();
-            }
 
-            //内嵌页
-            if(tools.isEmbedded()){
-                var mcookie = new MCookie();
-                this.options.pv_sid = mcookie.getSid();
-                this.options.pv_seq = mcookie.getSeq();
+                this.options.mba_sid = sidseq[0];
+                this.options.mba_seq = sidseq[1];
+
+                if(tools.isEmbedded()){
+                    this.options.pv_sid =  sidseq[0];
+                    this.options.pv_seq = sidseq[1];
+                }
             }
 
             var pinid = tools.getCookie("pinId"),
@@ -383,6 +383,8 @@
         MPing.EventSeries && MPing.EventSeries.updateSeries(this);
     }
     Click.attachEvent = function( cClass ){
+        if(Click.attachedEvent) return;
+
         cClass||(cClass = "J_ping");
         var _click = "touchstart" in window ? "touchstart" : "click",
              root = document.querySelector('body'),
@@ -430,6 +432,8 @@
 
             }
         }, false);
+
+        Click.attachedEvent = true;
     }
 
     /**添加购物车，生成sku对应事件串
@@ -518,18 +522,19 @@
         eventSeries: {},
         getSeries: function(callback){
             var tools = MPing.tools.Tools,
-                mcookie = new MCookie();
+                mcookie = new MCookie(),
+                sidseq = mcookie.getSidSeq();
             var ret = {
                 m_source:  tools.isEmbedded() ? '1' : "0",
                 mba_muid : mcookie.getMuid(),
-                mba_sid : mcookie.getSid(),
+                mba_sid : sidseq[0]+"",
                 event_series: this.eventSeries,
                 jda:  tools.getCookie("__jda")
             };
             if(tools.isEmbedded()){
-                ret["pv_sid"] = mcookie.getSid();
-                ret["pv_seq"] = mcookie.getSeq();
-                ret['pv_timestamp'] = new Date().getTime();
+                ret["pv_sid"] = sidseq[0]+"";
+                ret["pv_seq"] = sidseq[1]+"";
+                ret['pv_timestamp'] = new Date().getTime()+"";
             }
             return JSON.stringify(ret);
         },
@@ -803,15 +808,10 @@
             this.setMuid();
             return  _mbaMuidSeq[0];
         };
-        //读取mba_sid
-        this.getSid = function(){
+        //读取mba_sid,mba_seq
+        this.getSidSeq = function(){
             this.setSid();
-            return _mbaSidSeq[0];
-        };
-        //读取mba_seq
-        this.getSeq = function(){
-            this.setSid();
-            return _mbaSidSeq[1];
+            return _mbaSidSeq||[];
         };
 
         this.setMuid = function(){
@@ -862,7 +862,7 @@
             } else{
                 var m_muid = tools.getCookie("mba_muid") ,m_muid_arr =  m_muid.split(".");//从mba_muid cookie中取得上一次的sid
                 if(m_muid_arr.length == 3){
-                    var pre_sid = m_muid[1], pre_timestamp = parseInt(m_muid[2]);
+                    var pre_sid = m_muid_arr[1], pre_timestamp = parseInt(m_muid_arr[2]);
                     if(new Date().getTime() - pre_timestamp > Options.MCookie.sessionCookieTimeout ){//超过半小时
                         cookie_sid_seq = [pre_sid*1+1, 0].join(".");
                     }else{
@@ -872,9 +872,9 @@
                     cookie_sid_seq = '1.0';
                 }
             }
-            pv_sid = app_sid_seq> cookie_sid_seq ? app_sid_seq : cookie_sid_seq;
+            pv_sid = parseFloat(app_sid_seq)> parseFloat(cookie_sid_seq) ? app_sid_seq : cookie_sid_seq;
             _mbaSidSeq[0] = pv_sid.split(".")[0];
-            _mbaSidSeq[1] = (pv_sid.split(".")[1] ? pv_sid.split(".")[1]: 1)*1  + (type==="pv" ? 1 : 0) ;
+            _mbaSidSeq[1] = (pv_sid.split(".")[1] ? pv_sid.split(".")[1]: 0)*1  + (type==="pv" ? 1 : 0) ;
 
             _mbaMuidSeq[1] = _mbaSidSeq[0];
             _mbaMuidSeq[2] = new Date().getTime();
