@@ -787,6 +787,20 @@
         getParameter: function(url, name) {
             var f = url.match(RegExp("(^|&|\\?|#)(" + name + ")=([^&#]*)(&|$|#)", ""));
             return f ? f[3] : null
+        },
+        compare: function(a,b){
+            var sidseq_a = a.split("."), sidseq_b = b.split("."),
+                sid_a = parseFloat(sidseq_a[0]), seq_a = parseFloat(sidseq_a[1]),
+                sid_b = parseFloat(sidseq_b[0]), seq_b =parseFloat( sidseq_b[1]);
+            var ret;
+            if(sid_a>sid_b){
+                ret = a;
+            } else if(sid_a==sid_b){
+                ret = seq_a>=seq_b ? a : b;
+            } else{
+                ret = b;
+            }
+            return ret;
         }
     };
 
@@ -872,9 +886,11 @@
                     cookie_sid_seq = '1.0';
                 }
             }
-            pv_sid = parseFloat(app_sid_seq)> parseFloat(cookie_sid_seq) ? app_sid_seq : cookie_sid_seq;
+            //pv_sid = parseFloat(app_sid_seq)> parseFloat(cookie_sid_seq) ? app_sid_seq : cookie_sid_seq;
+            pv_sid = tools.compare(app_sid_seq, cookie_sid_seq);
+
             _mbaSidSeq[0] = pv_sid.split(".")[0];
-            _mbaSidSeq[1] = (pv_sid.split(".")[1] ? pv_sid.split(".")[1]: 0)*1  + (type==="pv" ? 1 : 0) ;
+            _mbaSidSeq[1] = (pv_sid.split  (".")[1] ? pv_sid.split(".")[1]: 0)*1  + (type==="pv" ? 1 : 0) ;
 
             _mbaMuidSeq[1] = _mbaSidSeq[0];
             _mbaMuidSeq[2] = new Date().getTime();
