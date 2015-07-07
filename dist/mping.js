@@ -188,6 +188,8 @@
 
             this.options.pinid = pinid ? pinid : "";
             this.options.uid = uid ? uid : "";
+
+            this.options.pin_sid = tools.getParameter(window.location.href, "sid");
         },
 
         //图片上报数据
@@ -195,7 +197,9 @@
 
             if(this.isSpider()) return; //爬虫不上报
 
-            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            this.sendByRequest(request, callback);
+
+            /*var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
             var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
             var param = [];
             param.push('data=' + sendData);
@@ -206,7 +210,7 @@
                 image = null;
                 callback && callback();
             };
-            image.src = url;
+            image.src = url;*/
         },
         //ajax上报
         sendByRequest: function(request, callback){
@@ -252,6 +256,8 @@
         mba_muid: "",
         mba_sid: "",
         mba_seq: "",
+
+        pin_sid: "",//内嵌页上报sid
 
         pv_sid: "", //内嵌页与app共同维护
         pv_seq: "" //内嵌页与app共同维护
@@ -1259,7 +1265,40 @@
         'MNeworder_RestAccount':5,
         'MNeworder_GuessYouLike':5,
         'MNeworder_UnavaliableCoupons':5,
-        'MMyJD_AllOrders':2
+        'MMyJD_AllOrders':2,
+        'MSaleBDCoupon_BannerPic':3,
+        'MSaleBDCouponResult_BannerPic':3,
+        'MShopcart_Productid':5,
+        'MShopcart_EditAmount':5,
+        'MShopcart_Amount':5,
+        'MShopcart_Stroll':5,
+        'MShopcart_CheckProd':5,
+        'MShopcart_CheckAll':5,
+        'MShopcart_Label':5,
+        'MShopcart_Getresent':5,
+        'MShopcart_Warranty':5,
+        'MShopcart_Delete':5,
+        'MShopcart_Pay':5,
+        'MShopcart_AddtoCart':5,
+        'MShopcart_Present':5,
+        'MShopcartDeleteProduct_Sure':5,
+        'MShopcartDeleteProduct_Cancel':5,
+        'MShopcart_Login':5,
+        'MShopcart_ShopEntrance':5,
+        'MShopcart_GuessYouLikeFold':5,
+        'MShopcart_GuessYouLike':5,
+        'MShopcart_SimilaritiesEntrance':5,
+        'MShopcart_SimilaritiesProductList':5,
+        'MCategory_1st':2,
+        'MCategory_3rd':2,
+        'MCategory_Banner':2,
+        'MCategory_Recommend':2,
+        'MList_AdProducts':3,
+        'MListFilter_Brand':3,
+        'MListFilter_Back':3,
+        'MListFilter_Address':3,
+        'MShopLIst_JDShop':3,
+        'MShopLIst_POPShop':3
     };
 
     /**

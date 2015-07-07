@@ -188,6 +188,8 @@
 
             this.options.pinid = pinid ? pinid : "";
             this.options.uid = uid ? uid : "";
+
+            this.options.pin_sid = tools.getParameter(window.location.href, "sid");
         },
 
         //图片上报数据
@@ -195,7 +197,9 @@
 
             if(this.isSpider()) return; //爬虫不上报
 
-            var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
+            this.sendByRequest(request, callback);
+
+            /*var sendData = encodeURIComponent( JSON.stringify( this.getReportData( request ) ));
             var interfaceUrl = "http://stat.m.jd.com/stat/access.jpg?";
             var param = [];
             param.push('data=' + sendData);
@@ -206,7 +210,7 @@
                 image = null;
                 callback && callback();
             };
-            image.src = url;
+            image.src = url;*/
         },
         //ajax上报
         sendByRequest: function(request, callback){
@@ -252,6 +256,8 @@
         mba_muid: "",
         mba_sid: "",
         mba_seq: "",
+
+        pin_sid: "",//内嵌页上报sid
 
         pv_sid: "", //内嵌页与app共同维护
         pv_seq: "" //内嵌页与app共同维护
