@@ -225,6 +225,7 @@
             };
 
             var sendData = JSON.stringify( this.getReportData( request ) );
+            sendData = sendData.replace(/\&/g, ",");//替换掉所有的&字符
             xhr.send(sendData);
         },
         getReportData: function( request ){
