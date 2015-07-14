@@ -175,19 +175,19 @@
                 this.options.mba_muid = mcookie.getMuid();
 
                 this.options.mba_sid = sidseq[0];
-                this.options.mba_seq = sidseq[1];
+                this.privates.mba_seq = sidseq[1];
 
                 if(tools.isEmbedded()){
-                    this.options.pv_sid =  sidseq[0];
-                    this.options.pv_seq = sidseq[1];
+                    this.privates.pv_sid =  sidseq[0];
+                    this.privates.pv_seq = sidseq[1];
                 }
             }
 
-            var pinid = tools.getCookie("pinId"),
-                uid = tools.getCookie("pin");
+            var pinid = tools.getCookie("pinId");
+                //uid = tools.getCookie("pin");
 
             this.options.pinid = pinid ? pinid : "";
-            this.options.uid = uid ? uid : "";
+            this.options.uid = pinid ? pinid : "";
 
             this.options.pin_sid = tools.getParameter(window.location.href, "sid");
         },
@@ -215,7 +215,7 @@
         //ajax上报
         sendByRequest: function(request, callback){
             var xhr =  new window.XMLHttpRequest();
-            xhr.open("POST", "http://stat.m.jd.com/stat/access.jpg", true);
+            xhr.open("POST", "http://stat.m.jd.com/stat/access", true);
             xhr.setRequestHeader("Content-Type", "text/plain");
             xhr.onreadystatechange = function(){
                 if(xhr.readyState == 4){
@@ -225,7 +225,7 @@
             };
 
             var sendData = JSON.stringify( this.getReportData( request ) );
-            sendData = sendData.replace(/\&/g, ",");//替换掉所有的&字符
+            //sendData = sendData.replace(/\&/g, ",");//替换掉所有的&字符
             xhr.send(sendData);
         },
         getReportData: function( request ){
@@ -239,6 +239,13 @@
                 var pData = request.getReportObj();
                 pData['pinid'] = this.options['pinid'];
                 pData['uid'] = this.options['uid'];
+
+                pData['mba_seq'] = this.privates['mba_seq'];
+
+                if(tools.isEmbedded()){
+                    pData['pv_sid'] = this.privates['pv_sid'];
+                    pData['pv_seq'] = this.privates['pv_seq'];
+                }
                 rData.data.push( pData );
             }
             return rData;
@@ -256,13 +263,15 @@
         pinid: "",
         mba_muid: "",
         mba_sid: "",
+
+        pin_sid: ""//内嵌页上报sid
+    };
+    MPing.prototype.privates = {
         mba_seq: "",
-
-        pin_sid: "",//内嵌页上报sid
-
         pv_sid: "", //内嵌页与app共同维护
         pv_seq: "" //内嵌页与app共同维护
     };
+
     MPing.prototype.ready = function ( ) {}
 
     function Request( name ) {
@@ -715,7 +724,7 @@
             return Object.prototype.toString.call(obj) === '[object Function]';
         },
         isMobile: function(){
-            var u = navigator.userAgent,
+            /*var u = navigator.userAgent,
                 flag = false;
 
             if(u.indexOf('jdapp') > -1) {
@@ -723,8 +732,8 @@
             } else {
                 var o = /(win|mac|sunos|solaris)/.exec(navigator.platform.toLowerCase());
                 flag = o == null ? true : false
-            }
-            return flag;
+            }*/
+            return true;
         },
         isEmbedded: function(){
             return navigator.userAgent.indexOf('jdapp') > -1 ;
