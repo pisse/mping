@@ -840,8 +840,13 @@
         };
         //读取mba_sid,mba_seq
         this.getSidSeq = function(){
+            var ret;
             this.setSid();
-            return _mbaSidSeq||[];
+            ret = (_mbaSidSeq||[]).slice(0);
+            for(var i=0; i<ret.length; i++){
+                ret[i] = ret[i] + "";
+            }
+            return ret;
         };
 
         this.setMuid = function(){

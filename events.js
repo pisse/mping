@@ -343,7 +343,19 @@
         'MListFilter_Back':3,
         'MListFilter_Address':3,
         'MShopLIst_JDShop':3,
-        'MShopLIst_POPShop':3
+        'MShopLIst_POPShop':3,
+        'MShopcart_LoginEmptyCart':5,
+        'MShopcart_LoginFullCart':5,
+        'MJDMembersHome_SecKillProducts':3,
+        'MJDMembersSecKill_Products':4,
+        'MJDMembersHome_MemberProducts':3,
+        'MJDMembersHome_MemberProductsToCart':3,
+        'MJDMembersHome_AllMemberProducts':3,
+        'MJDMembersSpecialSale_Categories':4,
+        'MJDMembersSpecialSale_Products':4,
+        'MJDMembers_FocusPic':3,
+        'MJDMembers_Shopid':3,
+        'MJDMembers_GetCoupon':3
     };
 
     /**
