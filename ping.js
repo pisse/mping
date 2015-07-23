@@ -189,7 +189,7 @@
             this.options.pinid = pinid ? pinid : "";
             this.options.uid = pinid ? pinid : "";
 
-            this.options.pin_sid = tools.getParameter(window.location.href, "sid");
+            this.options.pin_sid = tools.getParameter(window.location.href, "sid") || tools.getCookie("sid");
         },
 
         //图片上报数据
@@ -215,7 +215,7 @@
         //ajax上报
         sendByRequest: function(request, callback){
             var xhr =  new window.XMLHttpRequest();
-            xhr.open("POST", "http://stat.m.jd.com/stat/access", true);
+            xhr.open("POST",  document.location.protocol + "//stat.m.jd.com/stat/access", true);
             xhr.setRequestHeader("Content-Type", "text/plain");
             xhr.onreadystatechange = function(){
                 if(xhr.readyState == 4){
