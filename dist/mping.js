@@ -1325,7 +1325,31 @@
         'MJDMembersSpecialSale_Products':4,
         'MJDMembers_FocusPic':3,
         'MJDMembers_Shopid':3,
-        'MJDMembers_GetCoupon':3
+        'MJDMembers_GetCoupon':3,
+        'MVacationHonme_banner':3,
+        'MVacationHonme_Destinations':3,
+        'MVacationHonme_More':3,
+        'MVacationHonme_HotDestinations':3,
+        'MVacationHonme_SetOutCity':3,
+        'MVacationHonme_SearchBox':3,
+        'MVacationHonme_RecommendedProducts':3,
+        'MVacationSearch_HotWord':4,
+        'MVacationSearchResult_SearchBox':4,
+        'MVacationSearchResult_Synthesize':4,
+        'MVacationSearchResult_SalesVolume':4,
+        'MVacationSearchResult_Price':4,
+        'MVacationSearchResult_Fliter':4,
+        'MVacationSearchResult_Lines':4,
+        'MVacationProductDetail_Calendar':5,
+        'MVacationProductDetail_ProductPoint':5,
+        'MVacationProductDetail_Schedule':5,
+        'MVacationProductDetail_Comment':5,
+        'MVacationProductDetail_Costs':5,
+        'MVacationProductDetail_ReserveNotice':5,
+        'MVacationProductDetail_VisaInfo':5,
+        'MVacationProductDetail_ContactService':5,
+        'MVacationProductDetail_Call':5,
+        'MVacationProductDetail_ReserveNow':5
     };
 
     /**
