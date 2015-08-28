@@ -294,7 +294,7 @@
         'Widget_Commodity':1,
         'Widget_More':1,
         'MJingDouHome_Checkin':2,
-        'MSeckill_SubmitAndAccount':5,
+        'MSeckill_OrderSubmit':5,
         'MMyJD_MyPurse':2,
         'MMyJD_MyFollows':2,
         'MMyJD_BrowserHistory':2,
