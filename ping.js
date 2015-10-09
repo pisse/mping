@@ -130,7 +130,6 @@
             common['reserved1'] = this._getShortRefer( document.referrer );
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
-
         },
         _reservedCookies: function(){
             var tools = MPing.tools.Tools,
@@ -164,6 +163,17 @@
             var ua = navigator.userAgent.toLowerCase(), m = /android|iphone|ipad|ipod|windows phone|symbianos|nokia|bb/,
                 p = /linux|windows|mac|sunos|solaris/, o = m.exec(ua) || p.exec(ua);
             return o == null ? "other" : o[0];
+        },
+        _getBrowserInfo: function(){
+            var ua = navigator.userAgent;
+            var re = /(UCBrowser|CriOS|MQQBrowser|baidubrowser|GaoSuBrowerIPhone|MicroMessenger|Safari)\/(.*?)(?:\s{1}|$)/i;
+            var match = re.exec(ua), ret = {};
+            if( match ){
+                ret['browser'] = match[1];  //浏览器
+                ret['borwser_version'] = match[2]; //浏览器版本号
+                ret['mobile_model'] = this._getOs(); //手机型
+            }
+            return ret;
         },
         initUid:function(){
             var tools = MPing.tools.Tools,
@@ -230,10 +240,14 @@
         },
         getReportData: function( request ){
             var tools = MPing.tools.Tools,
-                 rData = {data:[] };
+                 rData = {data:[] },
+                 browserInfo = this._getBrowserInfo();
+
             tools.extend(rData, reportData['common']);
 
             tools.extend(rData, this.options);
+
+            tools.extend(rData, browserInfo);
 
             if( request instanceof MPing.Request ){
                 var pData = request.getReportObj();
@@ -341,6 +355,7 @@
         this.setTs("page_ts");
         this.setPageParam();
         this.setSourceParam();
+        this.setPvParams();
     }
     PV.prototype = new Request();
     PV.prototype.setSourceParam = function(){
@@ -356,6 +371,11 @@
                 this[key] = searchObj[key];
             }
         }
+    }
+    PV.prototype.setPvParams = function(){
+        var tools = MPing.tools.Tools;
+
+        this.jdv = tools.getCookie("__jdv");
     }
 
     /**

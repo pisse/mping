@@ -130,7 +130,6 @@
             common['reserved1'] = this._getShortRefer( document.referrer );
            // common['reserved2'] = userAgent;
             common['reserved3'] = this._reservedCookies();
-
         },
         _reservedCookies: function(){
             var tools = MPing.tools.Tools,
@@ -164,6 +163,17 @@
             var ua = navigator.userAgent.toLowerCase(), m = /android|iphone|ipad|ipod|windows phone|symbianos|nokia|bb/,
                 p = /linux|windows|mac|sunos|solaris/, o = m.exec(ua) || p.exec(ua);
             return o == null ? "other" : o[0];
+        },
+        _getBrowserInfo: function(){
+            var ua = navigator.userAgent;
+            var re = /(UCBrowser|CriOS|MQQBrowser|baidubrowser|GaoSuBrowerIPhone|MicroMessenger|Safari)\/(.*?)(?:\s{1}|$)/i;
+            var match = re.exec(ua), ret = {};
+            if( match ){
+                ret['browser'] = match[1];  //浏览器
+                ret['borwser_version'] = match[2]; //浏览器版本号
+                ret['mobile_model'] = this._getOs(); //手机型
+            }
+            return ret;
         },
         initUid:function(){
             var tools = MPing.tools.Tools,
@@ -230,10 +240,14 @@
         },
         getReportData: function( request ){
             var tools = MPing.tools.Tools,
-                 rData = {data:[] };
+                 rData = {data:[] },
+                 browserInfo = this._getBrowserInfo();
+
             tools.extend(rData, reportData['common']);
 
             tools.extend(rData, this.options);
+
+            tools.extend(rData, browserInfo);
 
             if( request instanceof MPing.Request ){
                 var pData = request.getReportObj();
@@ -341,6 +355,7 @@
         this.setTs("page_ts");
         this.setPageParam();
         this.setSourceParam();
+        this.setPvParams();
     }
     PV.prototype = new Request();
     PV.prototype.setSourceParam = function(){
@@ -356,6 +371,11 @@
                 this[key] = searchObj[key];
             }
         }
+    }
+    PV.prototype.setPvParams = function(){
+        var tools = MPing.tools.Tools;
+
+        this.jdv = tools.getCookie("__jdv");
     }
 
     /**
@@ -1399,7 +1419,68 @@
         'MTicketsProductdetail_Map':5,
         'MTicketsHome_More':3,
         'MFlashbuy_CategoryBeautyFloor':2,
-        'MTwelve_Play':4
+        'MTwelve_Play':4,
+        'MProductdetail_ad':3,
+        'MProductdetail_Comment':5,
+        'MProductdetail_CommentPhoto':5,
+        'MProductdetail_CouponSlide':5,
+        'MProductdetail_Coupon':5,
+        'MProductdetail_IdentifyingCodeInput':5,
+        'MProductdetail_IdentifyingCodeImage':5,
+        'MProductdetail_IdentifyingCodeCancel':5,
+        'MProductdetail_IdentifyingCodeConfirm':5,
+        'MProductdetail_IdentifyingCodeClose':5,
+        'MProductdetail_ChooseSpecifications':5,
+        'MProductdetail_ChooseInsurance':5,
+        'MProductdetail_EnterShop':5,
+        'MProductdetail_BackToTop':5,
+        'MProductdetail_SubscribeImmediately':5,
+        'MProductdetail_PurchaseImmediately':5,
+        'MProductdetail_OrderImmediately':5,
+        'MProductdetail_ShoppingCodeBuy':5,
+        'MProductdetail_DetailProductIntroduction':5,
+        'MProductdetail_DetailParameter':5,
+        'MProductdetail_DetailCustomerService':5,
+        'MProductdetail_DetailBackToTop':5,
+        'MProductdetail_CommentAllTab':5,
+        'MProductdetail_CommentFavorableTab':5,
+        'MProductdetail_CommentMediumTab':5,
+        'MProductdetail_CommentPoorTab':5,
+        'MProductdetail_CommentPictureTab':5,
+        'MProductdetail_CommentLikebutton':5,
+        'MProductdetail_CommentReply':5,
+        'MProductdetail_CommentAll':5,
+        'MProductdetail_ReplyCommentInput':5,
+        'MProductdetail_ReplyCommentSend':5,
+        'MProductdetail_ReplyCommentReply':5,
+        'MBMobileWareProductDetail_ProductMsg':4,
+        'MBMobileWareProductDetail_ProductIntroduction':4,
+        'MBMobileWareProductDetail_ProductSpecification':4,
+        'MBMobileWareProductDetail_ProductPackage':4,
+        'MBMobileWareProductDetail_AddToCart':4,
+        'MBMobileWareProductDetail_DeliveryAddr':4,
+        'MBProductdetail_Photo':5,
+        'MBProductdetail_Productinfo':5,
+        'MBProductdetail_Saleinfo':5,
+        'MBProductdetail_Shopid':5,
+        'MBProductdetail_GuessYouLike':5,
+        'MBProductdetail_Addtocart':5,
+        'MBProductdetail_Easybuy':5,
+        'MBProductdetail_GotoCart':5,
+        'MBProductdetail_AddtoFollowed':5,
+        'MBProductdetail_Advert':5,
+        'MBProductdetail_SalesPromotion':5,
+        'MBProductdetail_PreferentialPackage':5,
+        'MBProductdetail_Specification':5,
+        'MBProductdetail_Address':5,
+        'MBProductdetail_ServiceInfo':5,
+        'MBProductdetail_Insurances':5,
+        'MBProductdetail_InsurancesSelect':5,
+        'MBProductdetail_ProductdetailEntrance':5,
+        'MBProductdetail_ProductCommentEntrance':5,
+        'MBProductdetail_ProductShowEntrance':5,
+        'MBProductdetail_ConsultEntrance':5,
+        'MBProductdetail_AskServiceEntrance':5
     };
 
     /**
