@@ -67,6 +67,7 @@
         }
     };
 
+
     /**
      * MPing核心库，用于开辟一个程序入口
      */
@@ -463,7 +464,7 @@
                      e.preventDefault ? e.preventDefault() : e.returnValue = false;
                      setTimeout(function () {
                         window.location.href = href;
-                     }, 100);
+                     }, 200);
                  }
 
             }
@@ -553,6 +554,8 @@
     MPing.inputs.RmCart 	= RmCart;
     MPing.inputs.Order 	= Order;
 
+    var EmbeddedUA = "";
+
     //localstorage存储事件串
     var EventSeriesLocal = {
         eventSeries: {},
@@ -586,6 +589,11 @@
         },
         writeSeries: function(series){
             if(!series) return;
+        },
+
+        updateUA: function(ua){
+            if( !MPing.tools.Tools.isEmbedded()) return;
+            EmbeddedUA = ua;
         },
 
         updateSeries: function(req){
@@ -908,10 +916,19 @@
                     endIdx = ua.length;
                 }
                 app_sid_seq = ua.substring(app_sid_seq_index + 3, endIdx);
+
+                if(EmbeddedUA ){
+                    var embed_ua_seq_index = EmbeddedUA.indexOf('pv/');
+                    var embed_endIdx = EmbeddedUA.indexOf(";", embed_ua_seq_index );
+                    if(embed_endIdx < 0){
+                        embed_endIdx = EmbeddedUA.length;
+                    }
+                    var embed_app_sid_seq = EmbeddedUA.substring(embed_ua_seq_index + 3, embed_endIdx);
+                    app_sid_seq = tools.compare(app_sid_seq, embed_app_sid_seq);
+                }
             }else{
                 app_sid_seq = '1.0';
             }
-
 
             if(tools.getCookie("mba_sid")){
                 cookie_sid_seq = tools.getCookie("mba_sid");
@@ -1480,7 +1497,147 @@
         'MBProductdetail_ProductCommentEntrance':5,
         'MBProductdetail_ProductShowEntrance':5,
         'MBProductdetail_ConsultEntrance':5,
-        'MBProductdetail_AskServiceEntrance':5
+        'MBProductdetail_AskServiceEntrance':5,
+        'MRecharge_PhoneBillTab':4,
+        'MRecharge_PhoneTrafficTab':4,
+        'MRecharge_Product':4,
+        'MRecharge_ViewRechargeRecords':4,
+        'MRecharge_ImmediateRecharge':4,
+        'MRecharge_Coupons':4,
+        'MRecharge_JDBeans':4,
+        'MRecharge_ConfirmThePayment':4,
+        'MRecharge_TrafficOrder':4,
+        'MRecharge_TelephoneBill':4,
+        'MRecharge_OrderBuyAgain':4,
+        'MRecharge_OrderGoToPay':4,
+        'MRecharge_Order':4,
+        'MRecharge_OrderDetailBuyAgain':4,
+        'MRecharge_OrderDetailGoToPay':4,
+        'MlaoliuNei_OpenRedBag':4,
+        'MlaoliuNei_Share':4,
+        'MlaoliuNei_InfoFriendRedBag':4,
+        'MlaoliuNei_ToActivity':4,
+        'MlaoliuNei_CloseRedBag':4,
+        'MlaoliuNei_Order':4,
+        'MlaoliuNei_TelNum':4,
+        'MlaoliuNei_Participate ':4,
+        'MlaoliuNei_CancelOrder':4,
+        'MlaoliuWai_OpenRedBag':4,
+        'MlaoliuWai_MyRedBag':4,
+        'MlaoliuWai_DoubleEleven':4,
+        'MlaoliuWai_Rule':4,
+        'MlaoliuWai_ToJDUseRedBagNow':4,
+        'MlaoliuWai_CloseRule':4,
+        'MlaoliuWai_ToJDHangOut':4,
+        'MlaoliuWai_ToJDSendRedBag':4,
+        'MlaoliuWai_ToJDUseRedBag':4,
+        'MlaoliuWai_ToActivity':4,
+        'MlaoliuWai_Order':4,
+        'MlaoliuWai_TelNum':4,
+        'MlaoliuWai_Participate':4,
+        'MlaoliuWai_CancelOrder':4,
+        'MlaoliuNei_Rule':4,
+        'MlaoliuNei_CloseRule':4,
+        'MlaoliuNei_CloseTelNum':4,
+        'MlaoliuWai_ModifyTelNum':4,
+        'MlaoliuWai_ConfirmModifyTelNum':4,
+        'MlaoliuWai_CloseTelNum':4,
+        'MPreheat_Strategy':4,
+        'MPreheat_TheHeadlines':4,
+        'MPreheat_Coupons':4,
+        'MPreheat_ActivityCoupon':4,
+        'MPreheat_RemindMe':4,
+        'MPreheat_PreferentialFloor':4,
+        'MPreheat_PreferentialFloorAdvertisement':4,
+        'MPreheat_Brand':4,
+        'MPreheat_RankingList':4,
+        'MPreheat_RankingListProduct':4,
+        'MPreheat_DiscoverStrategy':4,
+        'MPreheat_DiscoverTopAdvertisement':4,
+        'MPreheat_DiscoverFunctionEntry':4,
+        'MDoubleElevenNavigation_AllTheMeeting':4,
+        'MDoubleElevenNavigation_FirstClassDirectory':4,
+        'MDoubleElevenNavigation_SecondClassDirectory':4,
+        'MDoubleElevenNavigation_EntranceHall':4,
+        'MDoubleElevenNavigation_ActiveEntry':4,
+        'MDoubleElevenNavigation_RecentEntranceHall':4,
+        'MPreheat_NavigationBottomTab':4,
+        'MGroupPurchase_TopClassification':4,
+        'MGroupPurchase_Search':4,
+        'MGroupPurchase_FocusPic':4,
+        'MGroupPurchase_TimeSlotProduct':4,
+        'MGroupPurchase_TimeSlot':4,
+        'MGroupPurchase_1Plus2AdPosition':4,
+        'MGroupPurchase_BottomNavigation':4,
+        'MGroupPurchase_TodayProduct':4,
+        'MGroupPurchase_BrandProduct':4,
+        'MGroupPurchase_BrandSearch':4,
+        'MGroupPurchase_LifeLocation':4,
+        'MGroupPurchase_LifeSearch':4,
+        'MGroupPurchase_LifeFocusPic':4,
+        'MGroupPurchase_LifeClassificationIcon':4,
+        'MGroupPurchase_Life1Plus2AdPosition':4,
+        'MGroupPurchase_LifeYouLikeProduct':4,
+        'MProductCoupon_GetSpecialcoupon':2,
+        'MProductCoupon_Get':2,
+        'MList_Comprehensive':1,
+        'MShake_CancelShake':4,
+        'MShake_ActivityRule':4,
+        'MShake_MainHall':4,
+        'MShake_ToMyShoppingCart':4,
+        'MShake_ShakingAgain':4,
+        'MShake_AddToCart':4,
+        'MShake_ImmediatelySeckill':4,
+        'MShake_GotIt':4,
+        'MShake_ReceiveGift':4,
+        'MShake_ReserveGift':4,
+        'MShake_Share':4,
+        'MShake_ShareDestination':4,
+        'MShake_GoToApp':4,
+        'MShake_ActivityTL':4,
+        'MShake_ActivityTR':4,
+        'MShake_ActivityBL':4,
+        'MShake_ActivityBR':4,
+        'MShake_Slide':4,
+        'MCrazyGroupPurchase_MyGroupPurchase':4,
+        'MCrazyGroupPurchase_TodayProduct':4,
+        'MCrazyGroupPurchase_PreviewForTheNext':4,
+        'MCrazyGroupPurchase_TodayProductProduct':4,
+        'MCrazyGroupPurchase_PreviewForTheNextProduct':4,
+        'MCrazyGroupPurchase_TodayProductParticipate1':4,
+        'MCrazyGroupPurchase_TodayProductParticipate2':4,
+        'MCrazyGroupPurchase_TodayProductParticipate3':4,
+        'MCrazyGroupPurchase_TodayProductParticipate4':4,
+        'MCrazyGroupPurchase_PreviewForTheNextParticipate1':4,
+        'MCrazyGroupPurchase_PreviewForTheNextParticipate2':4,
+        'MCrazyGroupPurchase_SecondScreen':4,
+        'MCrazyGroupPurchase_MyProduct':4,
+        'MCrazyGroupPurchase_MyProductParticipate1':4,
+        'MCrazyGroupPurchase_MyProductParticipate2':4,
+        'MCrazyGroupPurchase_MyProductParticipate3':4,
+        'MCrazyGroupPurchase_MyProductParticipate4':4,
+        'MCrazyGroupPurchase_SingleIntroduction':4,
+        'MCrazyGroupPurchase_SingleParticipate1':4,
+        'MCrazyGroupPurchase_SingleParticipate2':4,
+        'MCrazyGroupPurchase_SingleParticipate3':4,
+        'MCrazyGroupPurchase_SingleParticipate4':4,
+        'MCrazyGroupPurchase_SingleParticipate5':4,
+        'MCrazyGroupPurchase_SingleCrazyGroupPurchase':4,
+        'MCrazyGroupPurchase_SingleAdvertisement':4,
+        'MPreheat_DiscoverFunctionEntry':4,
+        'MPreheat_ActivityForecast':4,
+        'MPreheat_DiscoverMainBanner':4,
+        'MPreheat_DiscoverMulty':4,
+        'MPreheat_DiscoverQuick':4,
+        'MPreheat_DiscoverGood':4,
+        'MPreheat_DiscoverSave':4,
+        'Mpreheat_SecondScreenRemind':4,
+        'Mpreheat_ThirdScreenRemind':4,
+        'Mpreheat_FourthScreenPreferentialFloor':4,
+        'Mpreheat_FifthScreenPreferentialFloor':4,
+        'Mpreheat_SixthScreenRankingList':4,
+        'MPreheat_SencondQuickLeft':4,
+        'MPreheat_ThirdSaveLeft':4
     };
 
     /**

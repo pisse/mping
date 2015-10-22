@@ -67,6 +67,7 @@
         }
     };
 
+
     /**
      * MPing核心库，用于开辟一个程序入口
      */
@@ -463,7 +464,7 @@
                      e.preventDefault ? e.preventDefault() : e.returnValue = false;
                      setTimeout(function () {
                         window.location.href = href;
-                     }, 100);
+                     }, 200);
                  }
 
             }
@@ -553,6 +554,8 @@
     MPing.inputs.RmCart 	= RmCart;
     MPing.inputs.Order 	= Order;
 
+    var EmbeddedUA = "";
+
     //localstorage存储事件串
     var EventSeriesLocal = {
         eventSeries: {},
@@ -586,6 +589,11 @@
         },
         writeSeries: function(series){
             if(!series) return;
+        },
+
+        updateUA: function(ua){
+            if( !MPing.tools.Tools.isEmbedded()) return;
+            EmbeddedUA = ua;
         },
 
         updateSeries: function(req){
@@ -908,10 +916,19 @@
                     endIdx = ua.length;
                 }
                 app_sid_seq = ua.substring(app_sid_seq_index + 3, endIdx);
+
+                if(EmbeddedUA ){
+                    var embed_ua_seq_index = EmbeddedUA.indexOf('pv/');
+                    var embed_endIdx = EmbeddedUA.indexOf(";", embed_ua_seq_index );
+                    if(embed_endIdx < 0){
+                        embed_endIdx = EmbeddedUA.length;
+                    }
+                    var embed_app_sid_seq = EmbeddedUA.substring(embed_ua_seq_index + 3, embed_endIdx);
+                    app_sid_seq = tools.compare(app_sid_seq, embed_app_sid_seq);
+                }
             }else{
                 app_sid_seq = '1.0';
             }
-
 
             if(tools.getCookie("mba_sid")){
                 cookie_sid_seq = tools.getCookie("mba_sid");
