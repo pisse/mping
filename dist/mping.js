@@ -594,6 +594,9 @@
         updateUA: function(ua){
             if( !MPing.tools.Tools.isEmbedded()) return;
             EmbeddedUA = ua;
+
+            var cookie = new MCookie();
+            cookie.setSid("pv");
         },
 
         updateSeries: function(req){
@@ -906,25 +909,19 @@
 
         this.setPVSid = function(type){
             var ua =  navigator.userAgent,
-                app_sid_seq_index = ua.indexOf('pv/'),
+                app_sid_seq_re = /(?:^|;)pv\/(.+?)(?:;|$)/,
+                app_sid_seq_match = ua.match(app_sid_seq_re),
                 app_sid_seq, //来自app
                 cookie_sid_seq,//来自cookie,
                 pv_sid;
-            if( app_sid_seq_index > -1 ){
-                var endIdx = ua.indexOf(";", app_sid_seq_index );
-                if(endIdx < 0){
-                    endIdx = ua.length;
-                }
-                app_sid_seq = ua.substring(app_sid_seq_index + 3, endIdx);
+            if( app_sid_seq_match ){
+                app_sid_seq = app_sid_seq_match[1];
 
                 if(EmbeddedUA ){
-                    var embed_ua_seq_index = EmbeddedUA.indexOf('pv/');
-                    var embed_endIdx = EmbeddedUA.indexOf(";", embed_ua_seq_index );
-                    if(embed_endIdx < 0){
-                        embed_endIdx = EmbeddedUA.length;
+                    var embed_match = EmbeddedUA.match(app_sid_seq_re);
+                    if(embed_match){
+                        app_sid_seq = tools.compare(app_sid_seq, embed_match[1]);
                     }
-                    var embed_app_sid_seq = EmbeddedUA.substring(embed_ua_seq_index + 3, embed_endIdx);
-                    app_sid_seq = tools.compare(app_sid_seq, embed_app_sid_seq);
                 }
             }else{
                 app_sid_seq = '1.0';
@@ -1513,35 +1510,35 @@
         'MRecharge_Order':4,
         'MRecharge_OrderDetailBuyAgain':4,
         'MRecharge_OrderDetailGoToPay':4,
-        'MlaoliuNei_OpenRedBag':4,
-        'MlaoliuNei_Share':4,
-        'MlaoliuNei_InfoFriendRedBag':4,
-        'MlaoliuNei_ToActivity':4,
-        'MlaoliuNei_CloseRedBag':4,
-        'MlaoliuNei_Order':4,
-        'MlaoliuNei_TelNum':4,
-        'MlaoliuNei_Participate ':4,
-        'MlaoliuNei_CancelOrder':4,
-        'MlaoliuWai_OpenRedBag':4,
-        'MlaoliuWai_MyRedBag':4,
-        'MlaoliuWai_DoubleEleven':4,
-        'MlaoliuWai_Rule':4,
-        'MlaoliuWai_ToJDUseRedBagNow':4,
-        'MlaoliuWai_CloseRule':4,
-        'MlaoliuWai_ToJDHangOut':4,
-        'MlaoliuWai_ToJDSendRedBag':4,
-        'MlaoliuWai_ToJDUseRedBag':4,
-        'MlaoliuWai_ToActivity':4,
-        'MlaoliuWai_Order':4,
-        'MlaoliuWai_TelNum':4,
-        'MlaoliuWai_Participate':4,
-        'MlaoliuWai_CancelOrder':4,
-        'MlaoliuNei_Rule':4,
-        'MlaoliuNei_CloseRule':4,
-        'MlaoliuNei_CloseTelNum':4,
-        'MlaoliuWai_ModifyTelNum':4,
-        'MlaoliuWai_ConfirmModifyTelNum':4,
-        'MlaoliuWai_CloseTelNum':4,
+        'MlaoliuNei_OpenRedBag':3,
+        'MlaoliuNei_Share':3,
+        'MlaoliuNei_InfoFriendRedBag':3,
+        'MlaoliuNei_ToActivity':3,
+        'MlaoliuNei_CloseRedBag':3,
+        'MlaoliuNei_Order':3,
+        'MlaoliuNei_TelNum':3,
+        'MlaoliuNei_Participate ':3,
+        'MlaoliuNei_CancelOrder':3,
+        'MlaoliuWai_OpenRedBag':3,
+        'MlaoliuWai_MyRedBag':3,
+        'MlaoliuWai_DoubleEleven':3,
+        'MlaoliuWai_Rule':3,
+        'MlaoliuWai_ToJDUseRedBagNow':3,
+        'MlaoliuWai_CloseRule':3,
+        'MlaoliuWai_ToJDHangOut':3,
+        'MlaoliuWai_ToJDSendRedBag':3,
+        'MlaoliuWai_ToJDUseRedBag':3,
+        'MlaoliuWai_ToActivity':3,
+        'MlaoliuWai_Order':3,
+        'MlaoliuWai_TelNum':3,
+        'MlaoliuWai_Participate':3,
+        'MlaoliuWai_CancelOrder':3,
+        'MlaoliuNei_Rule':3,
+        'MlaoliuNei_CloseRule':3,
+        'MlaoliuNei_CloseTelNum':3,
+        'MlaoliuWai_ModifyTelNum':3,
+        'MlaoliuWai_ConfirmModifyTelNum':3,
+        'MlaoliuWai_CloseTelNum':3,
         'MPreheat_Strategy':4,
         'MPreheat_TheHeadlines':4,
         'MPreheat_Coupons':4,
@@ -1624,7 +1621,6 @@
         'MCrazyGroupPurchase_SingleParticipate5':4,
         'MCrazyGroupPurchase_SingleCrazyGroupPurchase':4,
         'MCrazyGroupPurchase_SingleAdvertisement':4,
-        'MPreheat_DiscoverFunctionEntry':4,
         'MPreheat_ActivityForecast':4,
         'MPreheat_DiscoverMainBanner':4,
         'MPreheat_DiscoverMulty':4,
@@ -1637,7 +1633,72 @@
         'Mpreheat_FifthScreenPreferentialFloor':4,
         'Mpreheat_SixthScreenRankingList':4,
         'MPreheat_SencondQuickLeft':4,
-        'MPreheat_ThirdSaveLeft':4
+        'MPreheat_ThirdSaveLeft':4,
+        'MSearch_Banner':3,
+        'MExplosionPurchase_Qualification':4,
+        'MExplosionPurchase_Purchase':4,
+        'MDoubleElevenStrategy_RemindMe':4,
+        'MShake_GoToProductDetail':4,
+        'MOneHundredRedBagNei_SendRedBag':3,
+        'MOneHundredRedBagNei_ToActivity':3,
+        'MOneHundredRedBagNei_ReservationReminder':3,
+        'MOneHundredRedBagNei_TelInput':3,
+        'MOneHundredRedBagNei_GoShopping':3,
+        'MOneHundredRedBagNei_CancelSubscribe':3,
+        'MOneHundredRedBagWai_OpenRedBag':3,
+        'MOneHundredRedBagWai_TelInput':3,
+        'MOneHundredRedBagWai_MyRedBag':3,
+        'MOneHundredRedBagWai_DoubleEleven':3,
+        'MOneHundredRedBagWai_Rule':3,
+        'MOneHundredRedBagNei_Rule':3,
+        'MOneHundredRedBagWai_ToJDUseRedBagNow':3,
+        'MOneHundredRedBagWai_ToJDHangOut':3,
+        'MOneHundredRedBagWai_MakeAOrder':3,
+        'MOneHundredRedBagWai_ToJDUseRedBag':3,
+        'MOneHundredRedBagWai_ToActivity':3,
+        'MOneHundredRedBagWai_ReservationReminder':3,
+        'MOneHundredRedBagWai_OrderTelInput':3,
+        'MOneHundredRedBagWai_GoShopping':3,
+        'MOneHundredRedBagWai_CancelSubscribe':3,
+        'MOneHundredRedBagWai_ChangeTelNum':3,
+        'MOneHundredRedBagWai_ConfirmChangeTelNum':3,
+        'MOneHundredRedBagWai_ExceedLimits':3,
+        'MOneHundredRedBagWai_NewPeople':3,
+        'MElevenMainHall_TheHeadlines':4,
+        'MElevenMainHall_Strategy':4,
+        'MElevenMainHall_RedBag':4,
+        'MElevenMainHall_ShoppingTime':4,
+        'MElevenMainHall_ShoppingTimeProduct':4,
+        'MElevenMainHall_BuyImmediately':4,
+        'MElevenMainHall_FirstSubFieldEntrance':4,
+        'MElevenMainHall_SubFieldEntrance':4,
+        'MElevenMainHall_SubFieldCoupons':4,
+        'MElevenMainHall_SubFieldSpecialEntrance':4,
+        'MElevenMainHall_SubFieldProduct':4,
+        'MElevenMainHall_SellingTab':4,
+        'MElevenMainHall_SellingTabProduct':4,
+        'MElevenMainHall_SecondScreen':4,
+        'MElevenMainHall_ThirdScreen':4,
+        'MElevenMainHall_FourthScreen':4,
+        'MElevenMainHall_FifthScreen':4,
+        'MElevenMainHall_SixthScreen':4,
+        'MElevenDiscover_Strategy':4,
+        'MElevenDiscover_TopAdvertisement':4,
+        'MElevenDiscover_Multy':4,
+        'MElevenDiscover_Sudoku':4,
+        'MElevenDiscover_Quick':4,
+        'MElevenDiscover_Good':4,
+        'MElevenDiscover_Save1':4,
+        'MElevenDiscover_Save2':4,
+        'MElevenDiscover_Save3':4,
+        'MElevenDiscover_DiscoverEntrance':4,
+        'MElevenDiscover_SecondScreen':4,
+        'MElevenDiscover_ThirdScreen':4,
+        'MElevenDiscover_FloatingLayer':4,
+        'MlaoliuNei_NewPeople':3,
+        'MlaoliuWai_NewPeople':3,
+        'MJingDouHome_Exclusive':2,
+        'MJingDouHome_Rank':2
     };
 
     /**

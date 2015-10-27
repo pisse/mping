@@ -594,6 +594,9 @@
         updateUA: function(ua){
             if( !MPing.tools.Tools.isEmbedded()) return;
             EmbeddedUA = ua;
+
+            var cookie = new MCookie();
+            cookie.setSid("pv");
         },
 
         updateSeries: function(req){
@@ -906,25 +909,19 @@
 
         this.setPVSid = function(type){
             var ua =  navigator.userAgent,
-                app_sid_seq_index = ua.indexOf('pv/'),
+                app_sid_seq_re = /(?:^|;)pv\/(.+?)(?:;|$)/,
+                app_sid_seq_match = ua.match(app_sid_seq_re),
                 app_sid_seq, //来自app
                 cookie_sid_seq,//来自cookie,
                 pv_sid;
-            if( app_sid_seq_index > -1 ){
-                var endIdx = ua.indexOf(";", app_sid_seq_index );
-                if(endIdx < 0){
-                    endIdx = ua.length;
-                }
-                app_sid_seq = ua.substring(app_sid_seq_index + 3, endIdx);
+            if( app_sid_seq_match ){
+                app_sid_seq = app_sid_seq_match[1];
 
                 if(EmbeddedUA ){
-                    var embed_ua_seq_index = EmbeddedUA.indexOf('pv/');
-                    var embed_endIdx = EmbeddedUA.indexOf(";", embed_ua_seq_index );
-                    if(embed_endIdx < 0){
-                        embed_endIdx = EmbeddedUA.length;
+                    var embed_match = EmbeddedUA.match(app_sid_seq_re);
+                    if(embed_match){
+                        app_sid_seq = tools.compare(app_sid_seq, embed_match[1]);
                     }
-                    var embed_app_sid_seq = EmbeddedUA.substring(embed_ua_seq_index + 3, embed_endIdx);
-                    app_sid_seq = tools.compare(app_sid_seq, embed_app_sid_seq);
                 }
             }else{
                 app_sid_seq = '1.0';
