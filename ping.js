@@ -40,7 +40,8 @@
         MCookie: {
             sessionCookieTimeout: 30*60*1000, //半小时
             visitorCookieTimeout: 1*180*24*60*60*1000 //半年
-        }
+        },
+        pageId : ""//页面id
     };
 
     //上报数据
@@ -348,7 +349,7 @@
      * @property {String}  utm_term:"",       //关键字
      * @property {String}  utm_campaign:""   //广告系列
      */
-    function PV() {
+    function PV(opts) {
         Request.call(this, "PV", null);
 
         this.type = Options.Type.PV;
@@ -357,6 +358,8 @@
         this.setPageParam();
         this.setSourceParam();
         this.setPvParams();
+
+        this.setPageId(opts);
     }
     PV.prototype = new Request();
     PV.prototype.setSourceParam = function(){
@@ -377,6 +380,15 @@
         var tools = MPing.tools.Tools;
 
         this.jdv = tools.getCookie("__jdv");
+    }
+    PV.prototype.setPageId = function(opts){
+        if(typeof opts == "string" || typeof opts == "number"){
+            Options.pageId = opts;
+        }
+        if( opts && typeof opts == 'object'){
+            Options.pageId = opts.pageId;
+        }
+        this.pageId = Options.pageId;
     }
 
     /**
@@ -413,11 +425,17 @@
 
         this.setTs("click_ts");
         this.setPageParam();
+        this.setPageId();
         //this.updateEventSeries();
     }
     Click.prototype = new Request();
     Click.prototype.updateEventSeries = function(){
         MPing.EventSeries && MPing.EventSeries.updateSeries(this);
+    }
+    Click.prototype.setPageId = function(){
+        if(Options.pageId){
+            this.pageId = Options.pageId;
+        }
     }
     Click.attachEvent = function( cClass ){
         if(Click.attachedEvent) return;
